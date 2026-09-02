@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Transcrição" />
+  <meta name="theme-color" content="#182640" />
+  <title>Transcrição de Reunião - FOCCUS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="manifest" href='data:application/manifest+json,{"name":"Transcrição de Reunião FOCCUS","short_name":"Transcrição","start_url":".","display":"standalone","background_color":"%23182640","theme_color":"%23182640"}' />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'><rect width='512' height='512' rx='120' fill='%23182640'/><circle cx='256' cy='256' r='180' fill='%23223652' stroke='%233a5f8a' stroke-width='8'/><rect x='216' y='120' width='80' height='160' rx='40' fill='%23dab177'/><path d='M160 260 C160 330 352 330 352 260' fill='none' stroke='%23ffffff' stroke-width='24' stroke-linecap='round'/><line x1='256' y1='330' x2='256' y2='390' stroke='%23ffffff' stroke-width='24' stroke-linecap='round'/><line x1='200' y1='390' x2='312' y2='390' stroke='%23ffffff' stroke-width='24' stroke-linecap='round'/></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'><rect width='512' height='512' rx='120' fill='%23182640'/><circle cx='256' cy='256' r='180' fill='%23223652' stroke='%233a5f8a' stroke-width='8'/><rect x='216' y='120' width='80' height='160' rx='40' fill='%23dab177'/><path d='M160 260 C160 330 352 330 352 260' fill='none' stroke='%23ffffff' stroke-width='24' stroke-linecap='round'/><line x1='256' y1='330' x2='256' y2='390' stroke='%23ffffff' stroke-width='24' stroke-linecap='round'/><line x1='200' y1='390' x2='312' y2='390' stroke='%23ffffff' stroke-width='24' stroke-linecap='round'/></svg>" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      /* FOCCUS Brand Palette */
+      --bg: #182640;
+      --surface: #223652;
+      --card: #2a4a72;
+      --accent: #dab177;
+      --accent-hover: #c59d65;
+      --accent-secondary: #3a5f8a;
+      --text: #ffffff;
+      --text-dim: #a8bdd4;
+      --green: #10b981;
+      --orange: #f59e0b;
+      --blue: #3b82c4;
+      --border: rgba(147, 180, 220, 0.18);
+      --radius: 16px;
+      --font: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      background-image: radial-gradient(ellipse 115% 90% at 50% 0%, #4a7ab8 0%, #3a5f8a 32%, #315882 68%, #182640 100%);
+      color: var(--text);
+      min-height: 100vh; min-height: -webkit-fill-available;
+      display: flex; flex-direction: column;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    header {
+      background: linear-gradient(180deg, #2d4f78 0%, #223652 100%);
+      padding: 16px 20px 12px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(10px);
+    }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;
+      box-shadow: 0 4px 12px rgba(218, 177, 119, 0.3);
+    }
+    .logo-text h1 { font-size: 16px; font-weight: 700; line-height: 1.1; color: var(--text); letter-spacing: 0.2px; }
+    .logo-text span { font-size: 11px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .timer-badge {
+      background: rgba(24, 38, 64, 0.6); border: 1px solid var(--border);
+      border-radius: 20px; padding: 6px 12px; font-size: 14px; font-weight: 600;
+      font-variant-numeric: tabular-nums; color: var(--text-dim); transition: all 0.3s;
+    }
+    .timer-badge.active { color: var(--accent); border-color: var(--accent); box-shadow: 0 0 14px rgba(218, 177, 119, 0.3); }
+    .timer-badge.paused { color: var(--orange); border-color: var(--orange); }
+
+    .btn-icon-nav {
+      background: rgba(218, 177, 119, 0.15); border: 1px solid rgba(218, 177, 119, 0.35);
+      color: var(--accent); padding: 6px 14px; border-radius: 20px;
+      font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-icon-nav:active { background: rgba(218, 177, 119, 0.3); }
+
+    /* Main Controls Container */
+    .controls { padding: 14px 20px 8px; display: flex; flex-direction: column; gap: 10px; }
+    
+    .primary-btn-row { display: flex; gap: 10px; align-items: center; }
+
+    .btn-main {
+      flex: 1; height: 54px; border: none; border-radius: var(--radius);
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.2s; -webkit-tap-highlight-color: transparent; letter-spacing: 0.3px;
+    }
+    .btn-main.idle {
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #1a1a1a;
+      box-shadow: 0 4px 20px rgba(218, 177, 119, 0.35);
+    }
+    .btn-main.recording {
+      background: linear-gradient(135deg, var(--orange), #d97706); color: white;
+      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4); animation: pulse-btn 2s infinite;
+    }
+    .btn-main.paused {
+      background: linear-gradient(135deg, var(--green), #059669); color: white;
+      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+    }
+    .btn-main.new-file {
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #1a1a1a;
+      box-shadow: 0 4px 20px rgba(218, 177, 119, 0.35);
+    }
+    .btn-main.continue-rec {
+      background: linear-gradient(135deg, var(--accent-secondary), #2a4a72); color: white;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(42, 74, 114, 0.4);
+    }
+
+    @keyframes pulse-btn {
+      0%, 100% { box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4); }
+      50% { box-shadow: 0 4px 30px rgba(245, 158, 11, 0.7); }
+    }
+    .btn-main:active { transform: scale(0.97); }
+
+    .btn-action {
+      height: 54px; padding: 0 16px; border: none; border-radius: var(--radius);
+      background: var(--surface); color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all 0.2s; -webkit-tap-highlight-color: transparent;
+      border: 1px solid var(--border); flex-shrink: 0;
+    }
+    .btn-action:active { transform: scale(0.95); background: var(--card); }
+    .btn-action:disabled { opacity: 0.35; cursor: default; }
+
+    .btn-finish {
+      background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #f87171;
+    }
+    .btn-share {
+      background: linear-gradient(135deg, var(--green), #059669); color: white; border: none;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+    }
+
+    .split-options-bar {
+      display: none; gap: 10px; width: 100%;
+    }
+    .split-options-bar.show { display: flex; }
+
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #1a1a1a; }
+    .dot.recording { background: white; animation: blink 1s infinite; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .lang-bar { padding: 0 20px 10px; display: flex; gap: 8px; }
+    .lang-btn {
+      padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
+      background: transparent; color: var(--text-dim); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; -webkit-tap-highlight-color: transparent;
+    }
+    .lang-btn.active { background: var(--accent); border-color: var(--accent); color: #1a1a1a; }
+
+    .status-bar {
+      margin: 0 20px 10px; padding: 10px 14px; background: rgba(34, 54, 82, 0.85);
+      border-radius: 12px; display: flex; align-items: center; gap: 10px;
+      font-size: 13px; color: var(--text-dim); min-height: 40px;
+      border: 1px solid var(--border); backdrop-filter: blur(8px);
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+    .status-dot.ok { background: var(--green); }
+    .status-dot.rec { background: var(--accent); animation: blink 1s infinite; }
+    .status-dot.paused { background: var(--orange); }
+    .status-dot.finished { background: var(--blue); }
+    .status-dot.warn { background: #f59e0b; }
+
+    .transcript-wrapper { flex: 1; display: flex; flex-direction: column; padding: 0 20px; overflow: hidden; }
+    .transcript-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .transcript-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); }
+    .word-count { font-size: 12px; color: var(--text-dim); }
+    .transcript-box {
+      flex: 1; background: rgba(34, 54, 82, 0.8); border-radius: var(--radius);
+      padding: 18px; overflow-y: auto; font-size: 15px; line-height: 1.7;
+      color: var(--text); border: 1px solid var(--border);
+      -webkit-overflow-scrolling: touch; min-height: 0;
+      max-height: calc(100vh - 340px); white-space: pre-wrap; word-break: break-word;
+      backdrop-filter: blur(8px);
+    }
+    .transcript-box .interim { color: var(--text-dim); font-style: italic; }
+    .transcript-paragraph { margin-bottom: 14px; display: block; }
+    .placeholder { color: var(--text-dim); font-style: italic; font-size: 14px; }
+
+    .bottom-pad { height: max(16px, env(safe-area-inset-bottom)); }
+
+    .toast {
+      position: fixed; bottom: max(100px, calc(env(safe-area-inset-bottom) + 90px));
+      left: 50%; transform: translateX(-50%) translateY(20px);
+      background: rgba(34, 54, 82, 0.95); color: white; padding: 12px 24px;
+      border-radius: 100px; font-size: 14px; font-weight: 600;
+      opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap;
+      backdrop-filter: blur(20px); border: 1px solid var(--accent); z-index: 100;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Modals */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(15, 26, 42, 0.85); z-index: 50;
+      display: none; align-items: center; justify-content: center; padding: 20px;
+      backdrop-filter: blur(8px);
+    }
+    .overlay.show { display: flex; }
+
+    .dialog {
+      background: var(--surface); border-radius: 20px; padding: 24px; width: 100%;
+      max-width: 360px; border: 1px solid var(--border); max-height: 80vh; display: flex; flex-direction: column;
+      box-shadow: 0 25px 50px -12px rgba(15, 34, 56, 0.6);
+    }
+    .dialog h3 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
+    .dialog p { font-size: 14px; color: var(--text-dim); margin-bottom: 16px; }
+
+    .dialog-buttons { display: flex; gap: 10px; }
+    .dialog-buttons button { flex: 1; height: 46px; border-radius: 12px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .btn-cancel { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--border); }
+    .btn-confirm { background: #ef4444; color: white; }
+
+    /* File Manager Modal */
+    .history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+    .history-item {
+      background: var(--card); padding: 12px 14px; border-radius: 12px;
+      border: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px;
+    }
+    .history-item-header { display: flex; justify-content: space-between; align-items: center; }
+    .history-title { font-size: 14px; font-weight: 700; color: var(--accent); }
+    .history-meta { font-size: 11px; color: var(--text-dim); }
+    .history-snippet { font-size: 12px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .btn-hist {
+      padding: 6px 12px; border-radius: 8px; border: none; background: rgba(255,255,255,0.1);
+      color: white; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .btn-hist.share { background: var(--green); }
+    .btn-hist.delete { background: rgba(239, 68, 68, 0.3); color: #f87171; }
+
+    /* Custom Scrollbars */
+    * { scrollbar-width: thin; scrollbar-color: #c9a062 var(--bg); }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🎙️</div>
+      <div class="logo-text"><h1>Transcrição</h1><span>FOCCUS</span></div>
+    </div>
+    <div class="header-right">
+      <div class="timer-badge" id="timerDisplay">00:00</div>
+      <button class="btn-icon-nav" onclick="openHistoryModal()">📁 Arquivos</button>
+    </div>
+  </header>
+
+  <!-- Controls Container -->
+  <div class="controls">
+    <!-- Row 1: Primary Controls during recording/idle -->
+    <div class="primary-btn-row" id="normalControls">
+      <button class="btn-main idle" id="btnRecord" onclick="handleRecordClick()">
+        <div class="dot" id="recDot"></div>
+        <span id="btnText">Iniciar Gravação</span>
+      </button>
+      <button class="btn-action btn-finish" id="btnFinish" onclick="finishRecording()" disabled title="Finalizar Reunião">⏹️ Finalizar</button>
+      <button class="btn-action btn-share" id="btnShare" onclick="saveTranscript()" disabled title="Salvar / Compartilhar">📤</button>
+    </div>
+
+    <!-- Row 2: Split Options shown AFTER clicking Finalizar / Salvar -->
+    <div class="split-options-bar" id="splitControls">
+      <button class="btn-main new-file" onclick="startNewFile()">
+        <span>🆕 Criar Novo Arquivo</span>
+      </button>
+      <button class="btn-main continue-rec" onclick="continueRecording()">
+        <span>▶️ Continuar Gravação</span>
+      </button>
+      <button class="btn-action btn-share" onclick="saveTranscript()" title="Salvar .txt">📤</button>
+    </div>
+  </div>
+
+  <div class="lang-bar">
+    <button class="lang-btn active" id="lang-pt" onclick="setLang('pt-BR')">🇧🇷 PT</button>
+    <button class="lang-btn" id="lang-en" onclick="setLang('en-US')">🇺🇸 EN</button>
+    <button class="lang-btn" id="lang-es" onclick="setLang('es-ES')">🇪🇸 ES</button>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Pronto para iniciar. Toque em "Iniciar Gravação".</span>
+  </div>
+
+  <div class="transcript-wrapper">
+    <div class="transcript-header">
+      <span class="transcript-label">📝 Transcrição</span>
+      <span class="word-count" id="wordCount">0 palavras</span>
+    </div>
+    <div class="transcript-box" id="transcriptBox">
+      <span class="placeholder">A transcrição aparecerá aqui em tempo real com quebra de linha nas pausas...</span>
+    </div>
+  </div>
+
+  <div class="bottom-pad"></div>
+  <div class="toast" id="toast"></div>
+
+  <!-- Confirm Clear Modal -->
+  <div class="overlay" id="confirmOverlay">
+    <div class="dialog">
+      <h3>Limpar transcrição?</h3>
+      <p>Todo o texto gravado nesta sessão será apagado. Esta ação não pode ser desfeita.</p>
+      <div class="dialog-buttons">
+        <button class="btn-cancel" onclick="closeDialog('confirmOverlay')">Cancelar</button>
+        <button class="btn-confirm" onclick="clearTranscript()">Limpar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History / Saved Files Modal -->
+  <div class="overlay" id="historyOverlay">
+    <div class="dialog">
+      <h3>📁 Transcrições Salvas</h3>
+      <p>Histórico interno das suas reuniões salvas no iPhone.</p>
+      <div class="history-list" id="historyList">
+        <span style="color: var(--text-dim); font-style: italic; font-size: 13px;">Nenhuma transcrição salva ainda.</span>
+      </div>
+      <div class="dialog-buttons">
+        <button class="btn-cancel" onclick="closeDialog('historyOverlay')">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let state = 'idle';
+    let recognition = null;
+    let paragraphs = [];
+    let selectedLang = 'pt-BR';
+    let timerInterval = null;
+    let secondsElapsed = 0;
+    let restartTimeout = null;
+    let savedHistory = [];
+
+    const btnRecord = document.getElementById('btnRecord');
+    const btnText = document.getElementById('btnText');
+    const recDot = document.getElementById('recDot');
+    const btnFinish = document.getElementById('btnFinish');
+    const btnShare = document.getElementById('btnShare');
+    const normalControls = document.getElementById('normalControls');
+    const splitControls = document.getElementById('splitControls');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const transcriptBox = document.getElementById('transcriptBox');
+    const wordCount = document.getElementById('wordCount');
+
+    try {
+      savedHistory = JSON.parse(localStorage.getItem('meeting_history') || '[]');
+    } catch(e) { savedHistory = []; }
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) setStatus('warn', 'Reconhecimento de voz não suportado. Use o Safari no iOS 16+.');
+
+    function buildRecognition() {
+      if (!SR) return null;
+      const r = new SR();
+      r.continuous = true;
+      r.interimResults = true;
+      r.maxAlternatives = 1;
+      r.lang = selectedLang;
+
+      r.onstart = () => {
+        if (state === 'recording') {
+          setStatus('rec', '🎙️ Gravando... fale normalmente.');
+        }
+      };
+
+      r.onresult = (e) => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript.trim();
+          if (e.results[i].isFinal) {
+            if (t) paragraphs.push(t);
+          } else {
+            interim = t;
+          }
+        }
+        renderTranscript(interim);
+      };
+
+      r.onerror = (e) => {
+        if (e.error === 'no-speech') return;
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          setStatus('warn', 'Permissão de microfone negada. Vá em Configurações > Safari > Microfone.');
+          stopRecognitionOnly();
+          state = 'idle';
+          updateUI();
+          return;
+        }
+        setStatus('warn', 'Erro: ' + e.error + '. Tentando reconectar...');
+      };
+
+      r.onend = () => {
+        if (state === 'recording') {
+          restartTimeout = setTimeout(() => {
+            if (state === 'recording') {
+              try { recognition.start(); } catch(err){}
+            }
+          }, 200);
+        }
+      };
+
+      return r;
+    }
+
+    function handleRecordClick() {
+      if (state === 'idle') {
+        startRecording();
+      } else if (state === 'recording') {
+        pauseRecording();
+      } else if (state === 'paused') {
+        resumeRecording();
+      }
+    }
+
+    function startRecording() {
+      if (!SR) { showToast('Use o Safari no iOS 16+ para transcrição.'); return; }
+      state = 'recording';
+      recognition = buildRecognition();
+      try { recognition.start(); } catch(e) { showToast('Erro ao iniciar: ' + e.message); return; }
+
+      updateUI();
+      if (secondsElapsed === 0) {
+        timerInterval = setInterval(updateTimer, 1000);
+      }
+    }
+
+    function pauseRecording() {
+      state = 'paused';
+      stopRecognitionOnly();
+      clearInterval(timerInterval);
+      timerInterval = null;
+
+      updateUI();
+      setStatus('paused', '⏸️ Gravação PAUSADA. Transcrição suspensa.');
+      showToast('⏸️ Gravação pausada.');
+    }
+
+    function resumeRecording() {
+      state = 'recording';
+      recognition = buildRecognition();
+      try { recognition.start(); } catch(e) {}
+      timerInterval = setInterval(updateTimer, 1000);
+
+      updateUI();
+      setStatus('rec', '🎙️ Gravação RETOMADA... escutando.');
+      showToast('🎙️ Gravação retomada.');
+    }
+
+    function finishRecording() {
+      stopRecognitionOnly();
+      clearInterval(timerInterval);
+      timerInterval = null;
+      state = 'finished';
+
+      if (paragraphs.length > 0) {
+        saveToInternalHistory();
+      }
+
+      updateUI();
+      renderTranscript('');
+      setStatus('finished', '✅ Reunião finalizada! Escolha: Criar Novo Arquivo ou Continuar.');
+      showToast('✅ Reunião finalizada.');
+    }
+
+    function startNewFile() {
+      stopRecognitionOnly();
+      clearInterval(timerInterval);
+      timerInterval = null;
+
+      paragraphs = [];
+      secondsElapsed = 0;
+      state = 'idle';
+
+      timerDisplay.textContent = '00:00';
+      updateUI();
+      renderTranscript('');
+
+      startRecording();
+      showToast('🆕 Novo arquivo iniciado!');
+    }
+
+    function continueRecording() {
+      resumeRecording();
+    }
+
+    function stopRecognitionOnly() {
+      if (restartTimeout) { clearTimeout(restartTimeout); restartTimeout = null; }
+      if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
+    }
+
+    function updateUI() {
+      btnFinish.disabled = (state === 'idle' && paragraphs.length === 0);
+      btnShare.disabled = (paragraphs.length === 0);
+
+      if (state === 'finished') {
+        normalControls.style.display = 'none';
+        splitControls.classList.add('show');
+        timerDisplay.className = 'timer-badge';
+      } else {
+        normalControls.style.display = 'flex';
+        splitControls.classList.remove('show');
+
+        if (state === 'idle') {
+          btnRecord.className = 'btn-main idle';
+          btnText.textContent = 'Iniciar Gravação';
+          recDot.className = 'dot';
+          timerDisplay.className = 'timer-badge';
+        } else if (state === 'recording') {
+          btnRecord.className = 'btn-main recording';
+          btnText.textContent = 'Pausar Gravação';
+          recDot.className = 'dot recording';
+          timerDisplay.className = 'timer-badge active';
+        } else if (state === 'paused') {
+          btnRecord.className = 'btn-main paused';
+          btnText.textContent = '▶️ Retomar Gravação';
+          recDot.className = 'dot';
+          timerDisplay.className = 'timer-badge paused';
+        }
+      }
+    }
+
+    function renderTranscript(interim) {
+      let html = '';
+      paragraphs.forEach((p) => {
+        html += `<p class="transcript-paragraph">${escapeHtml(p)}</p>`;
+      });
+
+      if (interim) {
+        html += `<p class="transcript-paragraph interim">${escapeHtml(interim)}</p>`;
+      }
+
+      if (!html) {
+        transcriptBox.innerHTML = '<span class="placeholder">A transcrição aparecerá aqui em tempo real com quebra de linha nas pausas...</span>';
+      } else {
+        transcriptBox.innerHTML = html;
+        transcriptBox.scrollTop = transcriptBox.scrollHeight;
+      }
+
+      const fullText = paragraphs.join(' ');
+      const words = fullText.trim().split(/\s+/).filter(w => w.length > 0);
+      wordCount.textContent = words.length + (words.length === 1 ? ' palavra' : ' palavras');
+      if (paragraphs.length > 0) btnShare.disabled = false;
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function saveToInternalHistory() {
+      const fullText = paragraphs.join('\n\n');
+      if (!fullText.trim()) return;
+
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+      const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      const id = Date.now();
+      const filename = `reuniao_${dateStr}_${pad(now.getHours())}-${pad(now.getMinutes())}.txt`;
+
+      const header = [
+        '=============================================',
+        '         TRANSCRIÇÃO DE REUNIÃO - FOCCUS',
+        '=============================================',
+        `Data: ${now.toLocaleDateString('pt-BR', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}`,
+        `Hora: ${now.toLocaleTimeString('pt-BR')}`,
+        `Duração registrada: ${formatTime(secondsElapsed)}`,
+        `Idioma: ${selectedLang}`,
+        '=============================================',
+        '',
+        'TRANSCRIÇÃO:',
+        '---------------------------------------------',
+        '',
+        fullText.trim()
+      ].join('\n');
+
+      if (savedHistory.length > 0 && savedHistory[0].text === header) return;
+
+      savedHistory.unshift({
+        id,
+        filename,
+        dateStr: `${dateStr} às ${timeStr}`,
+        snippet: paragraphs[0] ? paragraphs[0].substring(0, 60) + '...' : 'Sem resumo',
+        text: header
+      });
+
+      if (savedHistory.length > 30) savedHistory.pop();
+      try {
+        localStorage.setItem('meeting_history', JSON.stringify(savedHistory));
+      } catch(e){}
+    }
+
+    async function saveTranscript() {
+      saveToInternalHistory();
+      const fullText = paragraphs.join('\n\n');
+      if (!fullText.trim()) { showToast('Nenhum texto para salvar.'); return; }
+
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+      const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}`;
+      const filename = `reuniao_${dateStr}_${timeStr}.txt`;
+
+      const fileHeader = [
+        '=============================================',
+        '         TRANSCRIÇÃO DE REUNIÃO - FOCCUS',
+        '=============================================',
+        `Data: ${now.toLocaleDateString('pt-BR', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}`,
+        `Hora: ${now.toLocaleTimeString('pt-BR')}`,
+        `Duração registrada: ${formatTime(secondsElapsed)}`,
+        `Idioma: ${selectedLang}`,
+        '=============================================',
+        '',
+        'TRANSCRIÇÃO:',
+        '---------------------------------------------',
+        '',
+        fullText.trim(),
+        '',
+        '---------------------------------------------',
+        'Gerado pelo app Transcrição de Reunião - FOCCUS'
+      ].join('\n');
+
+      const blob = new Blob([fileHeader], { type: 'text/plain;charset=utf-8' });
+      const file = new File([blob], filename, { type: 'text/plain' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: filename,
+            text: 'Transcrição da reunião em arquivo .txt'
+          });
+          showToast('✅ Salvo / Compartilhado com sucesso!');
+          return;
+        } catch (shareErr) {
+          if (shareErr.name === 'AbortError') return;
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+      showToast('📄 Arquivo baixado: ' + filename);
+    }
+
+    function openHistoryModal() {
+      const listContainer = document.getElementById('historyList');
+      if (savedHistory.length === 0) {
+        listContainer.innerHTML = '<span style="color: var(--text-dim); font-style: italic; font-size: 13px;">Nenhuma transcrição salva ainda.</span>';
+      } else {
+        let html = '';
+        savedHistory.forEach((item, index) => {
+          html += `
+            <div class="history-item">
+              <div class="history-item-header">
+                <span class="history-title">📄 ${escapeHtml(item.filename)}</span>
+                <span class="history-meta">${escapeHtml(item.dateStr)}</span>
+              </div>
+              <div class="history-snippet">${escapeHtml(item.snippet)}</div>
+              <div class="history-actions">
+                <button class="btn-hist share" onclick="shareHistoryItem(${index})">📤 Enviar/Salvar</button>
+                <button class="btn-hist delete" onclick="deleteHistoryItem(${index})">🗑️ Apagar</button>
+              </div>
+            </div>
+          `;
+        });
+        listContainer.innerHTML = html;
+      }
+      document.getElementById('historyOverlay').classList.add('show');
+    }
+
+    async function shareHistoryItem(index) {
+      const item = savedHistory[index];
+      if (!item) return;
+      const blob = new Blob([item.text], { type: 'text/plain;charset=utf-8' });
+      const file = new File([blob], item.filename, { type: 'text/plain' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: item.filename });
+          return;
+        } catch(e){}
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = item.filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function deleteHistoryItem(index) {
+      savedHistory.splice(index, 1);
+      try { localStorage.setItem('meeting_history', JSON.stringify(savedHistory)); } catch(e){}
+      openHistoryModal();
+    }
+
+    function closeDialog(id) { document.getElementById(id).classList.remove('show'); }
+
+    function clearTranscript() {
+      closeDialog('confirmOverlay');
+      paragraphs = [];
+      secondsElapsed = 0;
+      state = 'idle';
+      stopRecognitionOnly();
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+
+      updateUI();
+      renderTranscript('');
+      timerDisplay.textContent = '00:00';
+      setStatus('', 'Transcrição limpa. Pronto para nova gravação.');
+      showToast('Transcrição apagada.');
+    }
+
+    function setLang(lang) {
+      selectedLang = lang;
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+      const id = lang === 'pt-BR' ? 'lang-pt' : lang === 'en-US' ? 'lang-en' : 'lang-es';
+      document.getElementById(id).classList.add('active');
+      if (state === 'recording') {
+        showToast('Reiniciando no novo idioma...');
+        pauseRecording();
+        setTimeout(resumeRecording, 300);
+      }
+    }
+
+    function updateTimer() {
+      if (state === 'recording') secondsElapsed++;
+      timerDisplay.textContent = formatTime(secondsElapsed);
+    }
+
+    function formatTime(s) {
+      return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+    }
+
+    function setStatus(type, msg) {
+      statusText.textContent = msg;
+      statusDot.className = 'status-dot';
+      if (type) statusDot.classList.add(type);
+    }
+
+    let toastTimer;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    setStatus('ok', 'Pronto para iniciar. Toque em "Iniciar Gravação".');
+  </script>
+</body>
+</html>
