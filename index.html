@@ -17,7 +17,6 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      /* FOCCUS Brand Palette */
       --bg: #182640;
       --surface: #223652;
       --card: #2a4a72;
@@ -28,6 +27,7 @@
       --text-dim: #a8bdd4;
       --green: #10b981;
       --orange: #f59e0b;
+      --red: #ef4444;
       --blue: #3b82c4;
       --border: rgba(147, 180, 220, 0.18);
       --radius: 16px;
@@ -76,10 +76,8 @@
     }
     .btn-icon-nav:active { background: rgba(218, 177, 119, 0.3); }
 
-    /* Main Controls Container */
     .controls { padding: 14px 20px 8px; display: flex; flex-direction: column; gap: 10px; }
-    
-    .primary-btn-row { display: flex; gap: 10px; align-items: center; }
+    .primary-btn-row { display: flex; gap: 8px; align-items: center; }
 
     .btn-main {
       flex: 1; height: 54px; border: none; border-radius: var(--radius);
@@ -116,9 +114,9 @@
     .btn-main:active { transform: scale(0.97); }
 
     .btn-action {
-      height: 54px; padding: 0 16px; border: none; border-radius: var(--radius);
+      height: 54px; padding: 0 14px; border: none; border-radius: var(--radius);
       background: var(--surface); color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
+      display: flex; align-items: center; justify-content: center; gap: 4px;
       transition: all 0.2s; -webkit-tap-highlight-color: transparent;
       border: 1px solid var(--border); flex-shrink: 0;
     }
@@ -126,16 +124,20 @@
     .btn-action:disabled { opacity: 0.35; cursor: default; }
 
     .btn-finish {
-      background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #f87171;
+      background: rgba(59, 130, 196, 0.2); border-color: rgba(59, 130, 196, 0.4); color: #60a5fa;
     }
     .btn-share {
       background: linear-gradient(135deg, var(--green), #059669); color: white; border: none;
       box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
     }
-
-    .split-options-bar {
-      display: none; gap: 10px; width: 100%;
+    .btn-discard {
+      background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #f87171;
     }
+    .btn-discard:hover {
+      background: rgba(239, 68, 68, 0.3);
+    }
+
+    .split-options-bar { display: none; gap: 8px; width: 100%; }
     .split-options-bar.show { display: flex; }
 
     .dot { width: 10px; height: 10px; border-radius: 50%; background: #1a1a1a; }
@@ -168,16 +170,29 @@
     .transcript-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); }
     .word-count { font-size: 12px; color: var(--text-dim); }
     .transcript-box {
-      flex: 1; background: rgba(34, 54, 82, 0.8); border-radius: var(--radius);
-      padding: 18px; overflow-y: auto; font-size: 15px; line-height: 1.7;
+      flex: 1; background: rgba(34, 54, 82, 0.85); border-radius: var(--radius);
+      padding: 18px; overflow-y: auto; font-size: 15px; line-height: 1.8;
       color: var(--text); border: 1px solid var(--border);
       -webkit-overflow-scrolling: touch; min-height: 0;
       max-height: calc(100vh - 340px); white-space: pre-wrap; word-break: break-word;
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px); position: relative;
     }
-    .transcript-box .interim { color: var(--text-dim); font-style: italic; }
-    .transcript-paragraph { margin-bottom: 14px; display: block; }
-    .placeholder { color: var(--text-dim); font-style: italic; font-size: 14px; }
+
+    .transcript-paragraph { margin-bottom: 14px; display: block; color: #ffffff; font-weight: 400; }
+
+    .transcript-box .interim {
+      color: var(--accent);
+      font-style: normal;
+      font-weight: 600;
+      background: rgba(218, 177, 119, 0.12);
+      padding: 4px 10px;
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+      margin-bottom: 14px;
+      display: inline-block;
+    }
+
+    .placeholder { color: var(--text-dim); font-style: italic; font-size: 14px; opacity: 0.7; }
 
     .bottom-pad { height: max(16px, env(safe-area-inset-bottom)); }
 
@@ -206,12 +221,12 @@
       box-shadow: 0 25px 50px -12px rgba(15, 34, 56, 0.6);
     }
     .dialog h3 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
-    .dialog p { font-size: 14px; color: var(--text-dim); margin-bottom: 16px; }
+    .dialog p { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.5; }
 
     .dialog-buttons { display: flex; gap: 10px; }
-    .dialog-buttons button { flex: 1; height: 46px; border-radius: 12px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; }
+    .dialog-buttons button { flex: 1; height: 46px; border-radius: 12px; border: none; font-size: 14px; font-weight: 700; cursor: pointer; }
     .btn-cancel { background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--border); }
-    .btn-confirm { background: #ef4444; color: white; }
+    .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4); }
 
     /* File Manager Modal */
     .history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
@@ -258,8 +273,9 @@
         <div class="dot" id="recDot"></div>
         <span id="btnText">Iniciar Gravação</span>
       </button>
-      <button class="btn-action btn-finish" id="btnFinish" onclick="finishRecording()" disabled title="Finalizar Reunião">⏹️ Finalizar</button>
+      <button class="btn-action btn-finish" id="btnFinish" onclick="finishRecording()" disabled title="Finalizar Reunião">⏹️</button>
       <button class="btn-action btn-share" id="btnShare" onclick="saveTranscript()" disabled title="Salvar / Compartilhar">📤</button>
+      <button class="btn-action btn-discard" id="btnDiscard" onclick="promptDiscard()" disabled title="Descartar Transcrição">🗑️</button>
     </div>
 
     <!-- Row 2: Split Options shown AFTER clicking Finalizar / Salvar -->
@@ -271,6 +287,7 @@
         <span>▶️ Continuar Gravação</span>
       </button>
       <button class="btn-action btn-share" onclick="saveTranscript()" title="Salvar .txt">📤</button>
+      <button class="btn-action btn-discard" onclick="promptDiscard()" title="Descartar Transcrição">🗑️</button>
     </div>
   </div>
 
@@ -291,21 +308,21 @@
       <span class="word-count" id="wordCount">0 palavras</span>
     </div>
     <div class="transcript-box" id="transcriptBox">
-      <span class="placeholder">A transcrição aparecerá aqui em tempo real com quebra de linha nas pausas...</span>
+      <span class="placeholder">A transcrição aparecerá aqui em tempo real...</span>
     </div>
   </div>
 
   <div class="bottom-pad"></div>
   <div class="toast" id="toast"></div>
 
-  <!-- Confirm Clear Modal -->
-  <div class="overlay" id="confirmOverlay">
+  <!-- FOCCUS Confirmation Modal for Discarding Transcript -->
+  <div class="overlay" id="discardOverlay">
     <div class="dialog">
-      <h3>Limpar transcrição?</h3>
-      <p>Todo o texto gravado nesta sessão será apagado. Esta ação não pode ser desfeita.</p>
+      <h3>⚠️ Descartar Transcrição?</h3>
+      <p><strong>Atenção:</strong> Todos os dados gravados nesta reunião serão apagados permanentemente e não poderão ser recuperados.</p>
       <div class="dialog-buttons">
-        <button class="btn-cancel" onclick="closeDialog('confirmOverlay')">Cancelar</button>
-        <button class="btn-confirm" onclick="clearTranscript()">Limpar</button>
+        <button class="btn-cancel" onclick="closeDialog('discardOverlay')">Cancelar</button>
+        <button class="btn-danger" onclick="confirmDiscard()">🗑️ Sim, Descartar</button>
       </div>
     </div>
   </div>
@@ -339,6 +356,7 @@
     const recDot = document.getElementById('recDot');
     const btnFinish = document.getElementById('btnFinish');
     const btnShare = document.getElementById('btnShare');
+    const btnDiscard = document.getElementById('btnDiscard');
     const normalControls = document.getElementById('normalControls');
     const splitControls = document.getElementById('splitControls');
     const timerDisplay = document.getElementById('timerDisplay');
@@ -493,8 +511,10 @@
     }
 
     function updateUI() {
-      btnFinish.disabled = (state === 'idle' && paragraphs.length === 0);
-      btnShare.disabled = (paragraphs.length === 0);
+      const hasContent = paragraphs.length > 0;
+      btnFinish.disabled = (state === 'idle' && !hasContent);
+      btnShare.disabled = !hasContent;
+      btnDiscard.disabled = (state === 'idle' && !hasContent);
 
       if (state === 'finished') {
         normalControls.style.display = 'none';
@@ -525,16 +545,17 @@
 
     function renderTranscript(interim) {
       let html = '';
+
       paragraphs.forEach((p) => {
         html += `<p class="transcript-paragraph">${escapeHtml(p)}</p>`;
       });
 
       if (interim) {
-        html += `<p class="transcript-paragraph interim">${escapeHtml(interim)}</p>`;
+        html += `<div class="interim">🎙️ ${escapeHtml(interim)}</div>`;
       }
 
       if (!html) {
-        transcriptBox.innerHTML = '<span class="placeholder">A transcrição aparecerá aqui em tempo real com quebra de linha nas pausas...</span>';
+        transcriptBox.innerHTML = '<span class="placeholder">A transcrição aparecerá aqui em tempo real...</span>';
       } else {
         transcriptBox.innerHTML = html;
         transcriptBox.scrollTop = transcriptBox.scrollHeight;
@@ -543,11 +564,32 @@
       const fullText = paragraphs.join(' ');
       const words = fullText.trim().split(/\s+/).filter(w => w.length > 0);
       wordCount.textContent = words.length + (words.length === 1 ? ' palavra' : ' palavras');
-      if (paragraphs.length > 0) btnShare.disabled = false;
+      updateUI();
     }
 
     function escapeHtml(text) {
       return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // ─── Discard Confirmation Pop-Up ──────────────────────────────────────────
+    function promptDiscard() {
+      if (paragraphs.length === 0 && state === 'idle') return;
+      document.getElementById('discardOverlay').classList.add('show');
+    }
+
+    function confirmDiscard() {
+      closeDialog('discardOverlay');
+      paragraphs = [];
+      secondsElapsed = 0;
+      state = 'idle';
+      stopRecognitionOnly();
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+
+      updateUI();
+      renderTranscript('');
+      timerDisplay.textContent = '00:00';
+      setStatus('', 'Transcrição descartada. Pronto para nova gravação.');
+      showToast('🗑️ Gravação descartada.');
     }
 
     function saveToInternalHistory() {
@@ -698,21 +740,6 @@
     }
 
     function closeDialog(id) { document.getElementById(id).classList.remove('show'); }
-
-    function clearTranscript() {
-      closeDialog('confirmOverlay');
-      paragraphs = [];
-      secondsElapsed = 0;
-      state = 'idle';
-      stopRecognitionOnly();
-      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-
-      updateUI();
-      renderTranscript('');
-      timerDisplay.textContent = '00:00';
-      setStatus('', 'Transcrição limpa. Pronto para nova gravação.');
-      showToast('Transcrição apagada.');
-    }
 
     function setLang(lang) {
       selectedLang = lang;
