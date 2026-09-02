@@ -344,12 +344,16 @@
   <script>
     let state = 'idle';
     let recognition = null;
-    let paragraphs = [];
+    let paragraphs = [];          // Committed paragraphs (paragraph break after 5s silence)
+    let currentBuffer = '';        // Finalized words accumulating in the current paragraph
+    let paragraphTimer = null;     // 5-second timer before committing currentBuffer as a new paragraph
+    const PARAGRAPH_DELAY = 5000; // 5 seconds of silence = new paragraph
     let selectedLang = 'pt-BR';
     let timerInterval = null;
     let secondsElapsed = 0;
     let restartTimeout = null;
     let savedHistory = [];
+
 
     const btnRecord = document.getElementById('btnRecord');
     const btnText = document.getElementById('btnText');
@@ -391,13 +395,27 @@
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const t = e.results[i][0].transcript.trim();
           if (e.results[i].isFinal) {
-            if (t) paragraphs.push(t);
+            // Accumulate finalized words into the current paragraph buffer
+            currentBuffer = (currentBuffer + ' ' + t).trim();
+
+            // Reset the 5-second paragraph commit timer on every new finalized word
+            if (paragraphTimer) clearTimeout(paragraphTimer);
+            paragraphTimer = setTimeout(() => {
+              if (currentBuffer.trim()) {
+                paragraphs.push(currentBuffer.trim());
+                currentBuffer = '';
+                paragraphTimer = null;
+                renderTranscript('');
+              }
+            }, PARAGRAPH_DELAY);
+
           } else {
             interim = t;
           }
         }
         renderTranscript(interim);
       };
+
 
       r.onerror = (e) => {
         if (e.error === 'no-speech') return;
@@ -439,6 +457,9 @@
       state = 'recording';
       recognition = buildRecognition();
       try { recognition.start(); } catch(e) { showToast('Erro ao iniciar: ' + e.message); return; }
+
+      // Clear placeholder immediately — before any word is spoken
+      transcriptBox.innerHTML = '<span style="color:var(--text-dim);font-style:italic;font-size:13px;">🎙️ Escutando...</span>';
 
       updateUI();
       if (secondsElapsed === 0) {
@@ -490,6 +511,8 @@
       timerInterval = null;
 
       paragraphs = [];
+      currentBuffer = '';
+      if (paragraphTimer) { clearTimeout(paragraphTimer); paragraphTimer = null; }
       secondsElapsed = 0;
       state = 'idle';
 
@@ -546,22 +569,32 @@
     function renderTranscript(interim) {
       let html = '';
 
+      // Committed paragraphs — solid white
       paragraphs.forEach((p) => {
         html += `<p class="transcript-paragraph">${escapeHtml(p)}</p>`;
       });
 
+      // Current buffer (finalized words not yet committed to a paragraph) — solid white, slightly dimmer
+      if (currentBuffer) {
+        html += `<p class="transcript-paragraph" style="opacity:0.85;">${escapeHtml(currentBuffer)}</p>`;
+      }
+
+      // Live interim speech — FOCCUS Gold badge
       if (interim) {
         html += `<div class="interim">🎙️ ${escapeHtml(interim)}</div>`;
       }
 
       if (!html) {
-        transcriptBox.innerHTML = '<span class="placeholder">A transcrição aparecerá aqui em tempo real...</span>';
+        // Only show placeholder when truly idle (no recording started)
+        if (state === 'idle') {
+          transcriptBox.innerHTML = '<span class="placeholder">A transcrição aparecerá aqui em tempo real...</span>';
+        }
       } else {
         transcriptBox.innerHTML = html;
         transcriptBox.scrollTop = transcriptBox.scrollHeight;
       }
 
-      const fullText = paragraphs.join(' ');
+      const fullText = paragraphs.join(' ') + ' ' + currentBuffer;
       const words = fullText.trim().split(/\s+/).filter(w => w.length > 0);
       wordCount.textContent = words.length + (words.length === 1 ? ' palavra' : ' palavras');
       updateUI();
@@ -580,6 +613,8 @@
     function confirmDiscard() {
       closeDialog('discardOverlay');
       paragraphs = [];
+      currentBuffer = '';
+      if (paragraphTimer) { clearTimeout(paragraphTimer); paragraphTimer = null; }
       secondsElapsed = 0;
       state = 'idle';
       stopRecognitionOnly();
