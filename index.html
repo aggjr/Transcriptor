@@ -354,17 +354,131 @@
   <script>
     let state = 'idle';
     let recognition = null;
+    let isRecognitionRunning = false;
     let paragraphs = [];          // Committed paragraphs (paragraph break after 5s silence)
     let currentBuffer = '';        // Finalized words accumulating in the current paragraph
     let paragraphTimer = null;     // 5-second timer before committing currentBuffer as a new paragraph
     const PARAGRAPH_DELAY = 5000; // 5 seconds of silence = new paragraph
     let selectedLang = 'pt-BR';
     let timerInterval = null;
+    let recordingStartTime = 0;
+    let accumulatedSeconds = 0;
     let secondsElapsed = 0;
     let restartTimeout = null;
+    let watchdogInterval = null;
     let savedHistory = [];
+    let wakeLock = null;
 
+    // Background keep-alive silent audio (helps iOS Safari maintain active audio session)
+    const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+    silentAudio.loop = true;
 
+    // ─── SoundFX (Web Audio API Synthesizer) ──────────────────────────────────
+    const SoundFX = {
+      ctx: null,
+      init() {
+        try {
+          if (!this.ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (AC) this.ctx = new AC();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        } catch(e){}
+      },
+      playTone(freq, type, duration, startTime, startGain, endGain) {
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, startTime);
+          gain.gain.setValueAtTime(startGain, startTime);
+          gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, endGain), startTime + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(startTime);
+          osc.stop(startTime + duration);
+        } catch(e){}
+      },
+      start() {
+        this.init();
+        if (navigator.vibrate) try { navigator.vibrate(40); } catch(e){}
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        // Two ascending soft tones: C5 (523Hz) -> G5 (784Hz)
+        this.playTone(523.25, 'sine', 0.12, now, 0.18, 0.001);
+        this.playTone(783.99, 'sine', 0.20, now + 0.11, 0.22, 0.001);
+      },
+      pause() {
+        this.init();
+        if (navigator.vibrate) try { navigator.vibrate(30); } catch(e){}
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        // Two descending tones: G5 (784Hz) -> E5 (659Hz)
+        this.playTone(783.99, 'sine', 0.12, now, 0.18, 0.001);
+        this.playTone(659.25, 'sine', 0.18, now + 0.10, 0.15, 0.001);
+      },
+      resume() {
+        this.init();
+        if (navigator.vibrate) try { navigator.vibrate(40); } catch(e){}
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        // Ascending tone: E5 (659Hz) -> G5 (784Hz)
+        this.playTone(659.25, 'sine', 0.10, now, 0.15, 0.001);
+        this.playTone(783.99, 'sine', 0.18, now + 0.09, 0.20, 0.001);
+      },
+      finish() {
+        this.init();
+        if (navigator.vibrate) try { navigator.vibrate([40, 60, 40]); } catch(e){}
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        // Pleasant FOCCUS Gold chord: C5 -> E5 -> G5 -> C6
+        this.playTone(523.25, 'sine', 0.15, now, 0.15, 0.001);
+        this.playTone(659.25, 'sine', 0.15, now + 0.08, 0.15, 0.001);
+        this.playTone(783.99, 'sine', 0.20, now + 0.16, 0.18, 0.001);
+        this.playTone(1046.50, 'sine', 0.35, now + 0.24, 0.22, 0.001);
+      },
+      discard() {
+        this.init();
+        if (navigator.vibrate) try { navigator.vibrate(60); } catch(e){}
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        // Subtle low descending "thud" for trash/discard
+        this.playTone(280, 'triangle', 0.10, now, 0.20, 0.01);
+        this.playTone(140, 'sine', 0.22, now + 0.08, 0.20, 0.001);
+      },
+      click() {
+        this.init();
+        if (navigator.vibrate) try { navigator.vibrate(20); } catch(e){}
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        this.playTone(800, 'sine', 0.05, now, 0.08, 0.001);
+      }
+    };
+
+    // ─── Screen Wake Lock (Keeps screen ON during recording) ───────────────────
+    async function acquireWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => { wakeLock = null; });
+          console.log('Screen Wake Lock ativo.');
+        }
+      } catch(err) {
+        console.warn('Wake Lock não pôde ser ativado:', err);
+      }
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock) {
+        try { wakeLock.release(); } catch(e){}
+        wakeLock = null;
+      }
+    }
+
+    // ─── DOM Elements ─────────────────────────────────────────────────────────
     const btnRecord = document.getElementById('btnRecord');
     const btnText = document.getElementById('btnText');
     const recDot = document.getElementById('recDot');
@@ -386,6 +500,7 @@
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) setStatus('warn', 'Reconhecimento de voz não suportado. Use o Safari no iOS 16+.');
 
+    // ─── Speech Recognition Engine ────────────────────────────────────────────
     function buildRecognition() {
       if (!SR) return null;
       const r = new SR();
@@ -395,8 +510,9 @@
       r.lang = selectedLang;
 
       r.onstart = () => {
+        isRecognitionRunning = true;
         if (state === 'recording') {
-          setStatus('rec', '🎙️ Gravando... fale normalmente.');
+          setStatus('rec', '🎙️ Gravando continuamente... fale normalmente.');
         }
       };
 
@@ -405,10 +521,8 @@
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const t = e.results[i][0].transcript.trim();
           if (e.results[i].isFinal) {
-            // Accumulate finalized words into the current paragraph buffer
             currentBuffer = (currentBuffer + ' ' + t).trim();
 
-            // Reset the 5-second paragraph commit timer on every new finalized word
             if (paragraphTimer) clearTimeout(paragraphTimer);
             paragraphTimer = setTimeout(() => {
               if (currentBuffer.trim()) {
@@ -416,6 +530,7 @@
                 currentBuffer = '';
                 paragraphTimer = null;
                 renderTranscript('');
+                persistAutoDraft();
               }
             }, PARAGRAPH_DELAY);
 
@@ -424,34 +539,95 @@
           }
         }
         renderTranscript(interim);
+        persistAutoDraft();
       };
-
 
       r.onerror = (e) => {
         if (e.error === 'no-speech') return;
         if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-          setStatus('warn', 'Permissão de microfone negada. Vá em Configurações > Safari > Microfone.');
+          setStatus('warn', 'Permissão de microfone negada. Ajustes > Safari > Microfone.');
           stopRecognitionOnly();
           state = 'idle';
           updateUI();
           return;
         }
-        setStatus('warn', 'Erro: ' + e.error + '. Tentando reconectar...');
+        // For transient errors (aborted, audio-capture, network) when recording:
+        console.warn('SpeechRecognition error:', e.error);
+        if (state === 'recording') {
+          scheduleRecognitionRestart(300);
+        }
       };
 
       r.onend = () => {
+        isRecognitionRunning = false;
         if (state === 'recording') {
-          restartTimeout = setTimeout(() => {
-            if (state === 'recording') {
-              try { recognition.start(); } catch(err){}
-            }
-          }, 200);
+          scheduleRecognitionRestart(200);
         }
       };
 
       return r;
     }
 
+    function scheduleRecognitionRestart(delay = 200) {
+      if (restartTimeout) clearTimeout(restartTimeout);
+      restartTimeout = setTimeout(() => {
+        if (state === 'recording') {
+          restartRecognition();
+        }
+      }, delay);
+    }
+
+    function restartRecognition() {
+      if (state !== 'recording') return;
+      try {
+        if (recognition) {
+          try { recognition.abort(); } catch(e){}
+          recognition = null;
+        }
+        recognition = buildRecognition();
+        if (recognition) recognition.start();
+      } catch(err) {
+        console.warn('Erro ao reiniciar reconhecimento:', err);
+        scheduleRecognitionRestart(1000);
+      }
+    }
+
+    function startWatchdog() {
+      if (watchdogInterval) clearInterval(watchdogInterval);
+      watchdogInterval = setInterval(() => {
+        if (state === 'recording' && !isRecognitionRunning) {
+          console.log('Watchdog: microfone recuperado.');
+          restartRecognition();
+        }
+      }, 2500);
+    }
+
+    function stopWatchdog() {
+      if (watchdogInterval) {
+        clearInterval(watchdogInterval);
+        watchdogInterval = null;
+      }
+    }
+
+    // ─── Visibility & Focus Handlers (Resume seamlessly after message/lock) ──
+    document.addEventListener('visibilitychange', async () => {
+      if (state === 'recording') {
+        if (document.visibilityState === 'visible') {
+          await acquireWakeLock();
+          if (!isRecognitionRunning) {
+            restartRecognition();
+          }
+        }
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      if (state === 'recording' && !isRecognitionRunning) {
+        restartRecognition();
+      }
+    });
+
+    // ─── Record Controls ──────────────────────────────────────────────────────
     function handleRecordClick() {
       if (state === 'idle') {
         startRecording();
@@ -462,68 +638,107 @@
       }
     }
 
-    function startRecording() {
+    async function startRecording() {
       if (!SR) { showToast('Use o Safari no iOS 16+ para transcrição.'); return; }
+      SoundFX.start();
       state = 'recording';
-      recognition = buildRecognition();
-      try { recognition.start(); } catch(e) { showToast('Erro ao iniciar: ' + e.message); return; }
 
-      // Clear placeholder immediately — before any word is spoken
-      transcriptBox.innerHTML = '<span style="color:var(--text-dim);font-style:italic;font-size:13px;">🎙️ Escutando...</span>';
+      // Keep screen awake & keep audio session alive
+      await acquireWakeLock();
+      try { silentAudio.play(); } catch(e){}
+
+      recognition = buildRecognition();
+      try {
+        recognition.start();
+      } catch(e) {
+        showToast('Erro ao iniciar microfone: ' + e.message);
+        return;
+      }
+
+      startWatchdog();
+
+      if (paragraphs.length === 0 && !currentBuffer) {
+        transcriptBox.innerHTML = '<span style="color:var(--text-dim);font-style:italic;font-size:13px;">🎙️ Escutando...</span>';
+      }
 
       updateUI();
-      if (secondsElapsed === 0) {
-        timerInterval = setInterval(updateTimer, 1000);
-      }
+      startTimer();
+      persistAutoDraft();
     }
 
     function pauseRecording() {
+      SoundFX.pause();
       state = 'paused';
       stopRecognitionOnly();
-      clearInterval(timerInterval);
-      timerInterval = null;
+      stopWatchdog();
+      releaseWakeLock();
+      try { silentAudio.pause(); } catch(e){}
+      pauseTimer();
 
       updateUI();
       setStatus('paused', '⏸️ Gravação PAUSADA. Transcrição suspensa.');
       showToast('⏸️ Gravação pausada.');
+      persistAutoDraft();
     }
 
-    function resumeRecording() {
+    async function resumeRecording() {
+      SoundFX.resume();
       state = 'recording';
+
+      await acquireWakeLock();
+      try { silentAudio.play(); } catch(e){}
+
       recognition = buildRecognition();
       try { recognition.start(); } catch(e) {}
-      timerInterval = setInterval(updateTimer, 1000);
+      startWatchdog();
+      startTimer();
 
       updateUI();
       setStatus('rec', '🎙️ Gravação RETOMADA... escutando.');
       showToast('🎙️ Gravação retomada.');
+      persistAutoDraft();
     }
 
     function finishRecording() {
+      SoundFX.finish();
       stopRecognitionOnly();
-      clearInterval(timerInterval);
-      timerInterval = null;
+      stopWatchdog();
+      releaseWakeLock();
+      try { silentAudio.pause(); } catch(e){}
+      pauseTimer();
       state = 'finished';
+
+      // Commit any lingering words in currentBuffer
+      if (currentBuffer.trim()) {
+        paragraphs.push(currentBuffer.trim());
+        currentBuffer = '';
+      }
 
       if (paragraphs.length > 0) {
         saveToInternalHistory();
       }
 
+      // Clear draft now that meeting is finished and stored in history
+      clearAutoDraft();
+
       updateUI();
       renderTranscript('');
-      setStatus('finished', '✅ Reunião finalizada! Escolha: Criar Novo Arquivo ou Continuar.');
-      showToast('✅ Reunião finalizada.');
+      setStatus('finished', '✅ Reunião salva! Escolha: Criar Novo Arquivo ou Continuar.');
+      showToast('✅ Reunião salva no histórico!');
     }
 
     function startNewFile() {
+      SoundFX.start();
       stopRecognitionOnly();
-      clearInterval(timerInterval);
-      timerInterval = null;
+      stopWatchdog();
+      releaseWakeLock();
+      try { silentAudio.pause(); } catch(e){}
+      resetTimer();
 
       paragraphs = [];
       currentBuffer = '';
       if (paragraphTimer) { clearTimeout(paragraphTimer); paragraphTimer = null; }
-      secondsElapsed = 0;
+      clearAutoDraft();
       state = 'idle';
 
       timerDisplay.textContent = '00:00';
@@ -540,11 +755,45 @@
 
     function stopRecognitionOnly() {
       if (restartTimeout) { clearTimeout(restartTimeout); restartTimeout = null; }
-      if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
+      isRecognitionRunning = false;
+      if (recognition) {
+        try { recognition.stop(); } catch(e){}
+        recognition = null;
+      }
     }
 
+    // ─── Timer Handling (Resilient against background throttling) ─────────────
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      recordingStartTime = Date.now();
+      timerInterval = setInterval(() => {
+        if (state === 'recording') {
+          const nowElapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+          secondsElapsed = accumulatedSeconds + nowElapsed;
+          timerDisplay.textContent = formatTime(secondsElapsed);
+          persistAutoDraft();
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      accumulatedSeconds = secondsElapsed;
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      accumulatedSeconds = 0;
+      secondsElapsed = 0;
+      timerDisplay.textContent = '00:00';
+    }
+
+    // ─── UI Rendering ─────────────────────────────────────────────────────────
     function updateUI() {
-      const hasContent = paragraphs.length > 0;
+      const hasContent = paragraphs.length > 0 || currentBuffer.length > 0;
       btnFinish.disabled = (state === 'idle' && !hasContent);
       btnShare.disabled = !hasContent;
       btnDiscard.disabled = (state === 'idle' && !hasContent);
@@ -579,23 +828,19 @@
     function renderTranscript(interim) {
       let html = '';
 
-      // Committed paragraphs — solid white
       paragraphs.forEach((p) => {
         html += `<p class="transcript-paragraph">${escapeHtml(p)}</p>`;
       });
 
-      // Current buffer (finalized words not yet committed to a paragraph) — solid white, slightly dimmer
       if (currentBuffer) {
         html += `<p class="transcript-paragraph" style="opacity:0.85;">${escapeHtml(currentBuffer)}</p>`;
       }
 
-      // Live interim speech — FOCCUS Gold badge
       if (interim) {
         html += `<div class="interim">🎙️ ${escapeHtml(interim)}</div>`;
       }
 
       if (!html) {
-        // Only show placeholder when truly idle (no recording started)
         if (state === 'idle') {
           transcriptBox.innerHTML = '<span class="placeholder">A transcrição aparecerá aqui em tempo real...</span>';
         }
@@ -614,29 +859,82 @@
       return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
+    // ─── Continuous Auto-Save (Protection against battery death / crash) ───────
+    function persistAutoDraft() {
+      if (paragraphs.length === 0 && !currentBuffer.trim()) {
+        clearAutoDraft();
+        return;
+      }
+      try {
+        const draft = {
+          paragraphs,
+          currentBuffer,
+          secondsElapsed,
+          selectedLang,
+          savedAt: Date.now()
+        };
+        localStorage.setItem('foccus_auto_draft', JSON.stringify(draft));
+      } catch(e){}
+    }
+
+    function clearAutoDraft() {
+      try { localStorage.removeItem('foccus_auto_draft'); } catch(e){}
+    }
+
+    function restoreAutoDraft() {
+      try {
+        const raw = localStorage.getItem('foccus_auto_draft');
+        if (!raw) return;
+        const draft = JSON.parse(raw);
+        if (draft && ((draft.paragraphs && draft.paragraphs.length > 0) || draft.currentBuffer)) {
+          paragraphs = draft.paragraphs || [];
+          currentBuffer = draft.currentBuffer || '';
+          secondsElapsed = draft.secondsElapsed || 0;
+          accumulatedSeconds = secondsElapsed;
+          selectedLang = draft.selectedLang || 'pt-BR';
+
+          document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+          const id = selectedLang === 'pt-BR' ? 'lang-pt' : selectedLang === 'en-US' ? 'lang-en' : 'lang-es';
+          const langEl = document.getElementById(id);
+          if (langEl) langEl.classList.add('active');
+
+          timerDisplay.textContent = formatTime(secondsElapsed);
+          renderTranscript('');
+          updateUI();
+          showToast('🔄 Gravação recuperada com sucesso!');
+          setStatus('ok', 'Gravação anterior recuperada. Toque para continuar ou salvar.');
+        }
+      } catch(e){}
+    }
+
     // ─── Discard Confirmation Pop-Up ──────────────────────────────────────────
     function promptDiscard() {
-      if (paragraphs.length === 0 && state === 'idle') return;
+      if (paragraphs.length === 0 && !currentBuffer && state === 'idle') return;
+      SoundFX.click();
       document.getElementById('discardOverlay').classList.add('show');
     }
 
     function confirmDiscard() {
+      SoundFX.discard();
       closeDialog('discardOverlay');
       paragraphs = [];
       currentBuffer = '';
       if (paragraphTimer) { clearTimeout(paragraphTimer); paragraphTimer = null; }
-      secondsElapsed = 0;
+      clearAutoDraft();
       state = 'idle';
       stopRecognitionOnly();
-      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      stopWatchdog();
+      releaseWakeLock();
+      try { silentAudio.pause(); } catch(e){}
+      resetTimer();
 
       updateUI();
       renderTranscript('');
-      timerDisplay.textContent = '00:00';
       setStatus('', 'Transcrição descartada. Pronto para nova gravação.');
       showToast('🗑️ Gravação descartada.');
     }
 
+    // ─── Internal History Storage ─────────────────────────────────────────────
     function saveToInternalHistory() {
       const fullText = paragraphs.join('\n\n');
       if (!fullText.trim()) return;
@@ -681,6 +979,7 @@
     }
 
     async function saveTranscript() {
+      SoundFX.finish();
       saveToInternalHistory();
       const fullText = paragraphs.join('\n\n');
       if (!fullText.trim()) { showToast('Nenhum texto para salvar.'); return; }
@@ -735,6 +1034,7 @@
     }
 
     function openHistoryModal() {
+      SoundFX.click();
       const listContainer = document.getElementById('historyList');
       if (savedHistory.length === 0) {
         listContainer.innerHTML = '<span style="color: var(--text-dim); font-style: italic; font-size: 13px;">Nenhuma transcrição salva ainda.</span>';
@@ -761,6 +1061,7 @@
     }
 
     async function shareHistoryItem(index) {
+      SoundFX.click();
       const item = savedHistory[index];
       if (!item) return;
       const blob = new Blob([item.text], { type: 'text/plain;charset=utf-8' });
@@ -779,14 +1080,19 @@
     }
 
     function deleteHistoryItem(index) {
+      SoundFX.discard();
       savedHistory.splice(index, 1);
       try { localStorage.setItem('meeting_history', JSON.stringify(savedHistory)); } catch(e){}
       openHistoryModal();
     }
 
-    function closeDialog(id) { document.getElementById(id).classList.remove('show'); }
+    function closeDialog(id) {
+      SoundFX.click();
+      document.getElementById(id).classList.remove('show');
+    }
 
     function setLang(lang) {
+      SoundFX.click();
       selectedLang = lang;
       document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
       const id = lang === 'pt-BR' ? 'lang-pt' : lang === 'en-US' ? 'lang-en' : 'lang-es';
@@ -796,11 +1102,7 @@
         pauseRecording();
         setTimeout(resumeRecording, 300);
       }
-    }
-
-    function updateTimer() {
-      if (state === 'recording') secondsElapsed++;
-      timerDisplay.textContent = formatTime(secondsElapsed);
+      persistAutoDraft();
     }
 
     function formatTime(s) {
@@ -820,7 +1122,11 @@
       clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
     }
 
-    setStatus('ok', 'Pronto para iniciar. Toque em "Iniciar Gravação".');
+    // Initialize state and check for recovered drafts
+    restoreAutoDraft();
+    if (!localStorage.getItem('foccus_auto_draft')) {
+      setStatus('ok', 'Pronto para iniciar. Toque em "Iniciar Gravação".');
+    }
   </script>
 </body>
 </html>
