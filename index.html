@@ -208,18 +208,56 @@
       backdrop-filter: blur(8px); position: relative;
     }
 
-    .transcript-paragraph { margin-bottom: 14px; display: block; color: #ffffff; font-weight: 400; }
-
-    .transcript-box .interim {
+        .transcript-block {
+      margin-bottom: 16px;
+      line-height: 1.55;
+      transition: all 0.25s ease;
+    }
+    .speaker-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #5b9cf6; /* FOCCUS Brand Blue */
+      display: block;
+      margin-bottom: 4px;
+      letter-spacing: 0.3px;
+    }
+    .speaker-label.live {
       color: var(--accent);
-      font-style: normal;
-      font-weight: 600;
-      background: rgba(218, 177, 119, 0.12);
-      padding: 4px 10px;
-      border-radius: 8px;
-      border-left: 3px solid var(--accent);
-      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .speaker-label.live::after {
+      content: '';
       display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse-live 1.2s infinite;
+    }
+    @keyframes pulse-live {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(0.8); }
+    }
+    .transcript-text {
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 400;
+    }
+    /* Active Speaking Thought Block in FOCCUS Gold */
+    .transcript-block.live-speaking {
+      background: rgba(218, 177, 119, 0.09);
+      border-left: 3.5px solid var(--accent);
+      border-radius: 4px 12px 12px 4px;
+      padding: 10px 14px;
+      margin-top: 10px;
+      margin-bottom: 12px;
+    }
+    .transcript-block.live-speaking .transcript-text {
+      color: #dab177;
+      font-weight: 500;
+      font-size: 15.5px;
     }
 
     .placeholder { color: var(--text-dim); font-style: italic; font-size: 14px; opacity: 0.7; }
@@ -394,6 +432,7 @@
     let paragraphTimer = null;
     const PARAGRAPH_DELAY = 5000;  // 5s silence = new paragraph
     let selectedLang = 'pt-BR';
+    let currentSpeaker = 'Augusto';
     let timerInterval = null;
     let recordingStartTime = 0;
     let accumulatedSeconds = 0;
@@ -607,26 +646,21 @@
       r.onresult = (e) => {
         let interim = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
-          const t = e.results[i][0].transcript.trim();
+          const t = e.results[i][0].transcript;
           if (e.results[i].isFinal) {
-            currentBuffer = (currentBuffer + ' ' + t).trim();
-            lastInterimText = '';
-
-            if (paragraphTimer) clearTimeout(paragraphTimer);
-            paragraphTimer = setTimeout(() => {
-              if (currentBuffer.trim()) {
-                paragraphs.push(currentBuffer.trim());
-                currentBuffer = '';
-                paragraphTimer = null;
-                renderTranscript('');
-                persistAutoDraft();
-              }
-            }, PARAGRAPH_DELAY);
+            currentBuffer = (currentBuffer + ' ' + t.trim()).trim();
+            interim = '';
           } else {
-            interim = t;
-            lastInterimText = t;
+            interim += t;
           }
         }
+
+        // Keep current thought in Gold for PARAGRAPH_DELAY (5s) after speech stops
+        if (paragraphTimer) clearTimeout(paragraphTimer);
+        paragraphTimer = setTimeout(() => {
+          commitCurrentParagraph();
+        }, PARAGRAPH_DELAY);
+
         renderTranscript(interim);
         persistAutoDraft();
       };
@@ -648,17 +682,10 @@
 
       r.onend = () => {
         isRecognitionRunning = false;
-
-        // Anti-Clipping: Flush any spoken words trapped in interim before restart
-        if (lastInterimText && lastInterimText.trim()) {
-          currentBuffer = (currentBuffer + ' ' + lastInterimText.trim()).trim();
-          lastInterimText = '';
-          renderTranscript('');
-          persistAutoDraft();
-        }
-
+        // Do NOT discard or prematurely commit currentBuffer on onend!
+        // The thought continues in Gold across Safari's silent 60s resets.
         if (state === 'recording') {
-          scheduleRecognitionRestart(150);
+          scheduleRecognitionRestart(100);
         }
       };
 
@@ -798,7 +825,7 @@
 
       // 3. Parallel non-blocking operations
       acquireWakeLock().catch(()=>{});
-      startAudioRecorder();
+      // Audio dedicated exclusively to WebSpeech to prevent audio drop
       startWatchdog();
 
       if (paragraphs.length === 0 && !currentBuffer) {
@@ -811,6 +838,7 @@
 
     function pauseRecording() {
       SoundFX.pause();
+      commitCurrentParagraph();
       state = 'paused';
       stopRecognitionOnly();
       stopWatchdog();
@@ -854,6 +882,7 @@
 
     function finishRecording() {
       SoundFX.finish();
+      commitCurrentParagraph();
       stopRecognitionOnly();
       stopWatchdog();
       releaseWakeLock();
@@ -978,19 +1007,47 @@
       }
     }
 
+    function commitCurrentParagraph() {
+      if (paragraphTimer) {
+        clearTimeout(paragraphTimer);
+        paragraphTimer = null;
+      }
+      const textToCommit = currentBuffer.trim();
+      if (textToCommit) {
+        paragraphs.push({
+          speaker: currentSpeaker,
+          text: textToCommit
+        });
+        currentBuffer = '';
+        renderTranscript('');
+        persistAutoDraft();
+      }
+    }
+
     function renderTranscript(interim) {
       let html = '';
 
+      // 1. Committed paragraphs: Speaker in FOCCUS Blue (#5b9cf6), text in White
       paragraphs.forEach((p) => {
-        html += `<p class="transcript-paragraph">${escapeHtml(p)}</p>`;
+        const speaker = (typeof p === 'object' && p.speaker) ? p.speaker : 'Augusto';
+        const text = (typeof p === 'object' && p.text) ? p.text : p;
+        html += `
+          <div class="transcript-block">
+            <span class="speaker-label">${escapeHtml(speaker)}:</span>
+            <p class="transcript-text">${escapeHtml(text)}</p>
+          </div>
+        `;
       });
 
-      if (currentBuffer) {
-        html += `<p class="transcript-paragraph" style="opacity:0.88;">${escapeHtml(currentBuffer)}</p>`;
-      }
-
-      if (interim) {
-        html += `<div class="interim">🎙️ ${escapeHtml(interim)}</div>`;
+      // 2. Active in-progress thought: Full block in FOCCUS Gold (#dab177)
+      const liveText = (currentBuffer + (interim ? ' ' + interim : '')).trim();
+      if (liveText) {
+        html += `
+          <div class="transcript-block live-speaking">
+            <span class="speaker-label live">🎙️ ${escapeHtml(currentSpeaker)} (falando...):</span>
+            <p class="transcript-text">${escapeHtml(liveText)}</p>
+          </div>
+        `;
       }
 
       if (!html) {
@@ -1002,8 +1059,13 @@
         transcriptBox.scrollTop = transcriptBox.scrollHeight;
       }
 
-      const fullText = paragraphs.join(' ') + ' ' + currentBuffer;
-      const words = fullText.trim().split(/\s+/).filter(w => w.length > 0);
+      // Word count calculation
+      let totalText = '';
+      paragraphs.forEach(p => {
+        totalText += ' ' + ((typeof p === 'object' && p.text) ? p.text : p);
+      });
+      totalText += ' ' + liveText;
+      const words = totalText.trim().split(/\s+/).filter(w => w.length > 0);
       wordCount.textContent = words.length + (words.length === 1 ? ' palavra' : ' palavras');
       updateUI();
     }
@@ -1040,7 +1102,7 @@
         if (!raw) return;
         const draft = JSON.parse(raw);
         if (draft && ((draft.paragraphs && draft.paragraphs.length > 0) || draft.currentBuffer)) {
-          paragraphs = draft.paragraphs || [];
+          paragraphs = (draft.paragraphs || []).map(p => typeof p === 'string' ? { speaker: 'Augusto', text: p } : p);
           currentBuffer = draft.currentBuffer || '';
           secondsElapsed = draft.secondsElapsed || 0;
           accumulatedSeconds = secondsElapsed;
@@ -1091,7 +1153,11 @@
 
     // ─── Internal History Storage ─────────────────────────────────────────────
     function saveToInternalHistory() {
-      const fullText = paragraphs.join('\n\n');
+      const fullText = paragraphs.map(p => {
+        const spk = (typeof p === 'object' && p.speaker) ? p.speaker : 'Augusto';
+        const txt = (typeof p === 'object' && p.text) ? p.text : p;
+        return `${spk}:\n${txt}`;
+      }).join('\n\n');
       if (!fullText.trim()) return;
 
       const now = new Date();
@@ -1136,7 +1202,11 @@
     async function saveTranscript() {
       SoundFX.finish();
       saveToInternalHistory();
-      const fullText = paragraphs.join('\n\n');
+      const fullText = paragraphs.map(p => {
+        const spk = (typeof p === 'object' && p.speaker) ? p.speaker : 'Augusto';
+        const txt = (typeof p === 'object' && p.text) ? p.text : p;
+        return `${spk}:\n${txt}`;
+      }).join('\n\n');
       if (!fullText.trim()) { showToast('Nenhum texto para salvar.'); return; }
 
       const now = new Date();
