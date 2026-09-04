@@ -345,6 +345,31 @@
   <div class="bottom-pad"></div>
   <div class="toast" id="toast"></div>
 
+    <!-- Existing Content Confirmation Modal -->
+  <div class="overlay" id="existingContentModal">
+    <div class="dialog">
+      <h3>💾 Gravação Anterior Detectada</h3>
+      <p>Existe uma transcrição gravada na tela. Deseja salvar o conteúdo anterior antes de iniciar uma nova gravação?</p>
+      <div class="dialog-buttons" style="flex-direction: column; gap: 10px;">
+        <button class="btn-main" style="background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #142136; height: 46px; font-size: 14px;" onclick="handleSaveAndStartNew()">💾 Sim, Salvar e Iniciar Nova</button>
+        <button class="btn-cancel" style="background: rgba(239, 68, 68, 0.18); border-color: rgba(239, 68, 68, 0.5); color: #f87171; height: 46px; font-size: 14px;" onclick="handlePromptDiscardBeforeStart()">🗑️ Não Salvar (Descartar)</button>
+        <button class="btn-cancel" style="height: 42px;" onclick="closeDialog('existingContentModal')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Discard Warning Modal before Starting New -->
+  <div class="overlay" id="discardWarningBeforeStartModal">
+    <div class="dialog">
+      <h3>⚠️ Atenção: Perda de Dados</h3>
+      <p><strong>Atenção:</strong> Todos os dados gravados nesta reunião anterior serão apagados permanentemente e não poderão ser recuperados. Deseja realmente descartar e iniciar uma nova gravação?</p>
+      <div class="dialog-buttons">
+        <button class="btn-cancel" onclick="closeDialog('discardWarningBeforeStartModal')">Cancelar</button>
+        <button class="btn-danger" onclick="handleConfirmDiscardAndStartNew()">🗑️ Sim, Descartar e Iniciar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- FOCCUS Confirmation Modal for Discarding Transcript -->
   <div class="overlay" id="discardOverlay">
     <div class="dialog">
@@ -717,14 +742,55 @@
     });
 
     // ─── Record Controls (Strict Synchronous User Activation) ─────────────────
+    function clearAllSessionData() {
+      paragraphs = [];
+      currentBuffer = '';
+      lastInterimText = '';
+      recordedAudioBlob = null;
+      if (paragraphTimer) { clearTimeout(paragraphTimer); paragraphTimer = null; }
+      clearAutoDraft();
+      resetTimer();
+      renderTranscript('');
+      wordCount.textContent = '0 palavras';
+    }
+
     function handleRecordClick() {
       if (state === 'idle') {
+        const hasExistingContent = paragraphs.length > 0 || currentBuffer.trim().length > 0;
+        if (hasExistingContent) {
+          SoundFX.click();
+          document.getElementById('existingContentModal').classList.add('show');
+          return;
+        }
+        // If clean canvas, ensure pristine state and start
+        clearAllSessionData();
         startRecording();
       } else if (state === 'recording') {
         pauseRecording();
       } else if (state === 'paused') {
         resumeRecording();
       }
+    }
+
+    async function handleSaveAndStartNew() {
+      closeDialog('existingContentModal');
+      await saveTranscript();
+      clearAllSessionData();
+      startRecording();
+    }
+
+    function handlePromptDiscardBeforeStart() {
+      closeDialog('existingContentModal');
+      SoundFX.click();
+      document.getElementById('discardWarningBeforeStartModal').classList.add('show');
+    }
+
+    function handleConfirmDiscardAndStartNew() {
+      SoundFX.discard();
+      closeDialog('discardWarningBeforeStartModal');
+      clearAllSessionData();
+      startRecording();
+      showToast('🆕 Tela limpa! Nova gravação iniciada.');
     }
 
     function startRecording() {
@@ -841,19 +907,10 @@
       stopWatchdog();
       releaseWakeLock();
       stopAudioRecorder();
-      resetTimer();
 
-      paragraphs = [];
-      currentBuffer = '';
-      lastInterimText = '';
-      recordedAudioBlob = null;
-      if (paragraphTimer) { clearTimeout(paragraphTimer); paragraphTimer = null; }
-      clearAutoDraft();
+      clearAllSessionData();
       state = 'idle';
-
-      timerDisplay.textContent = '00:00';
       updateUI();
-      renderTranscript('');
 
       startRecording();
       showToast('🆕 Novo arquivo iniciado!');
@@ -1031,21 +1088,14 @@
     function confirmDiscard() {
       SoundFX.discard();
       closeDialog('discardOverlay');
-      paragraphs = [];
-      currentBuffer = '';
-      lastInterimText = '';
-      recordedAudioBlob = null;
-      if (paragraphTimer) { clearTimeout(paragraphTimer); paragraphTimer = null; }
-      clearAutoDraft();
+      clearAllSessionData();
       state = 'idle';
       stopRecognitionOnly();
       stopWatchdog();
       releaseWakeLock();
       stopAudioRecorder();
-      resetTimer();
 
       updateUI();
-      renderTranscript('');
       setStatus('', 'Transcrição descartada. Pronto para nova gravação.');
       showToast('🗑️ Gravação descartada.');
     }
