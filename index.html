@@ -109,23 +109,94 @@
       box-shadow: 0 0 24px rgba(218, 177, 119, 0.65);
       animation: pulse-recording 1.8s infinite;
     }
-    /* State 3: Paused */
-    .btn-main.paused {
-      background: rgba(34, 54, 82, 0.9);
-      color: var(--accent);
-      border: 1.5px dashed var(--accent);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
-    }
-    .btn-main.new-file {
-      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-      color: #142136;
-      box-shadow: 0 4px 20px rgba(218, 177, 119, 0.35);
-    }
-    .btn-main.continue-rec {
+    /* Dynamic Buttons Layout */
+    .controls-row { display: flex; gap: 8px; align-items: center; width: 100%; }
+
+    /* Button variants */
+    .btn-main.continue-btn {
       background: linear-gradient(135deg, #1f3554, #2a4a72);
       color: var(--accent);
       border: 1.5px solid var(--accent);
       box-shadow: 0 4px 18px rgba(15, 26, 42, 0.4);
+    }
+    .btn-main.continue-btn:hover {
+      background: linear-gradient(135deg, #254066, #315882);
+    }
+    .btn-main.new-rec-btn {
+      background: linear-gradient(135deg, #dab177, #c59d65);
+      color: #142136;
+      border: 1.5px solid #fff2d6;
+      box-shadow: 0 4px 18px rgba(218, 177, 119, 0.35);
+    }
+    .btn-main.new-rec-btn:hover {
+      background: linear-gradient(135deg, #e5be82, #d1a870);
+    }
+
+    /* Botão Encerrar Reunião */
+    .btn-finish-main {
+      flex: 0.85; height: 54px; border-radius: var(--radius);
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all 0.25s ease; -webkit-tap-highlight-color: transparent;
+      background: rgba(55, 25, 30, 0.9);
+      color: #fca5a5;
+      border: 1.5px solid rgba(239, 68, 68, 0.6);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    }
+    .btn-finish-main:not(:disabled):hover {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: rgba(239, 68, 68, 0.9);
+      color: #ffffff;
+    }
+    .btn-finish-main:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      border-color: rgba(147, 180, 220, 0.15);
+      color: var(--text-dim);
+      background: rgba(34, 54, 82, 0.5);
+    }
+
+    /* Linha Secundária: WhatsApp, Salvar, Descartar */
+    .btn-action-pill {
+      flex: 1; height: 44px; border-radius: 12px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all 0.2s; -webkit-tap-highlight-color: transparent;
+      border: 1px solid var(--border);
+    }
+    .btn-action-pill.btn-wa {
+      background: rgba(37, 211, 102, 0.15);
+      border-color: rgba(37, 211, 102, 0.45);
+      color: #25d366;
+    }
+    .btn-action-pill.btn-wa:not(:disabled):hover {
+      background: rgba(37, 211, 102, 0.28);
+      color: #ffffff;
+    }
+    .btn-action-pill.btn-save-file {
+      background: rgba(218, 177, 119, 0.12);
+      border-color: rgba(218, 177, 119, 0.4);
+      color: var(--accent);
+    }
+    .btn-action-pill.btn-save-file:not(:disabled):hover {
+      background: rgba(218, 177, 119, 0.25);
+      color: #ffffff;
+    }
+    .btn-action-pill.btn-discard-pill {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+    .btn-action-pill.btn-discard-pill:not(:disabled):hover {
+      background: rgba(239, 68, 68, 0.22);
+      color: #ffffff;
+    }
+    .btn-action-pill:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      border-color: var(--border);
+      color: var(--text-dim);
+      background: rgba(34, 54, 82, 0.3);
     }
 
     @keyframes pulse-recording {
@@ -326,7 +397,7 @@
   <header>
     <div class="logo">
       <div class="logo-icon"><img src="apple-touch-icon.png" alt="FOCCUS" style="width: 100%; height: 100%; border-radius: 9px; object-fit: cover;" /></div>
-      <div class="logo-text"><h1>Transcrição</h1><span>FOCCUS <small style="font-size: 10px; opacity: 0.7; cursor: pointer;" onclick="checkAppUpdate(true)" title="Toque para verificar atualizações">v1.2.0 🔄</small></span></div>
+      <div class="logo-text"><h1>Transcrição</h1><span>FOCCUS <small style="font-size: 10px; opacity: 0.7; cursor: pointer;" onclick="checkAppUpdate(true)" title="Toque para verificar atualizações">v1.2.2 🔄</small></span></div>
     </div>
     <div class="header-right">
       <div class="timer-badge" id="timerDisplay">00:00</div>
@@ -334,29 +405,49 @@
     </div>
   </header>
 
-  <!-- Controls Container -->
+  <!-- Controls Container: Ajuste Dinâmico Inteligente -->
   <div class="controls">
-    <!-- Row 1: Primary Controls during recording/idle -->
-    <div class="primary-btn-row" id="normalControls">
-      <button class="btn-main idle" id="btnRecord" onclick="handleRecordClick()">
-        <div class="dot" id="recDot"></div>
-        <span id="btnText">Iniciar Gravação</span>
+    <!-- Estado 1: Tela Limpa (Botão único Iniciar Gravação) -->
+    <div class="controls-row" id="rowInitial" style="display: flex;">
+      <button class="btn-main idle" id="btnStartRecord" onclick="startRecording()">
+        <div class="dot"></div>
+        <span>🎙️ Iniciar Gravação</span>
       </button>
-      <button class="btn-action btn-finish" id="btnFinish" onclick="finishRecording()" disabled title="Finalizar Gravação e Salvar">💾</button>
-      <button class="btn-action btn-share" id="btnShare" onclick="saveTranscript()" disabled title="Compartilhar"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></button>
-      <button class="btn-action btn-discard" id="btnDiscard" onclick="promptDiscard()" disabled title="Descartar Transcrição">🗑️</button>
     </div>
 
-    <!-- Row 2: Split Options shown AFTER clicking Finalizar / Salvar -->
-    <div class="split-options-bar" id="splitControls">
-      <button class="btn-main new-file" onclick="startNewFile()">
-        <span>🆕 Criar Novo Arquivo</span>
+    <!-- Estado 2: Gravando (Pausar Gravação + Encerrar) -->
+    <div class="controls-row" id="rowRecording" style="display: none;">
+      <button class="btn-main recording" id="btnPauseRecord" onclick="pauseRecording()">
+        <div class="dot recording"></div>
+        <span>⏸️ Pausar Gravação</span>
       </button>
-      <button class="btn-main continue-rec" onclick="continueRecording()">
+      <button class="btn-finish-main" id="btnFinishRecord" onclick="finishRecording()" title="Encerrar reunião e salvar">
+        <span>⏹️ Encerrar</span>
+      </button>
+    </div>
+
+    <!-- Estado 3: Conteúdo Existente na Tela (EXATAMENTE 2 BOTÕES: Continuar Gravação + Nova Gravação) -->
+    <div class="controls-row" id="rowContentPaused" style="display: none;">
+      <button class="btn-main continue-btn" id="btnContinueRecord" onclick="resumeRecording()">
         <span>▶️ Continuar Gravação</span>
       </button>
-      <button class="btn-action btn-share" onclick="saveTranscript()" title="Compartilhar"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></button>
-      <button class="btn-action btn-discard" onclick="promptDiscard()" title="Descartar Transcrição">🗑️</button>
+      <button class="btn-main new-rec-btn" id="btnNewRecord" onclick="handleNewRecordingClick()">
+        <span>🆕 Nova Gravação</span>
+      </button>
+    </div>
+
+    <!-- Linha Secundária: WhatsApp Direto, Salvar Arquivo e Descartar -->
+    <div class="controls-row">
+      <button class="btn-action-pill btn-wa" id="btnWhatsApp" onclick="sendToWhatsApp()" disabled title="Enviar transcrição diretamente para o WhatsApp">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        <span>WhatsApp</span>
+      </button>
+      <button class="btn-action-pill btn-save-file" id="btnSaveFile" onclick="saveTranscript()" disabled title="Baixar arquivo .txt e áudio">
+        <span>💾 Salvar</span>
+      </button>
+      <button class="btn-action-pill btn-discard-pill" id="btnDiscardPill" onclick="promptDiscard()" disabled title="Descartar gravação atual">
+        <span>🗑️ Descartar</span>
+      </button>
     </div>
   </div>
 
@@ -377,7 +468,12 @@
       <span class="word-count" id="wordCount">0 palavras</span>
     </div>
     <div class="transcript-box" id="transcriptBox">
-      <span class="placeholder">A transcrição aparecerá aqui em tempo real...</span>
+      <div id="committedList"></div>
+      <div class="transcript-block live-speaking" id="liveSpeakingBlock" style="display: none;">
+        <span class="speaker-label live">🎙️ <span id="liveSpeakerLabel">Augusto</span> (falando...):</span>
+        <p class="transcript-text" id="liveSpeakingText"></p>
+      </div>
+      <span class="placeholder" id="emptyPlaceholder">A transcrição aparecerá aqui em tempo real...</span>
     </div>
   </div>
 
@@ -435,8 +531,8 @@
   </div>
 
   <script>
-        const CURRENT_VERSION = '1.2.0';
-    const CURRENT_BUILD = 2026090401;
+        const CURRENT_VERSION = '1.2.2';
+    const CURRENT_BUILD = 2026090502;
     let pendingUpdateBuild = null;
 
     async function checkAppUpdate(isManual = false) {
@@ -658,19 +754,26 @@
     }
 
     // ─── DOM Elements ─────────────────────────────────────────────────────────
-    const btnRecord = document.getElementById('btnRecord');
-    const btnText = document.getElementById('btnText');
-    const recDot = document.getElementById('recDot');
-    const btnFinish = document.getElementById('btnFinish');
-    const btnShare = document.getElementById('btnShare');
-    const btnDiscard = document.getElementById('btnDiscard');
-    const normalControls = document.getElementById('normalControls');
-    const splitControls = document.getElementById('splitControls');
+    const rowInitial = document.getElementById('rowInitial');
+    const rowRecording = document.getElementById('rowRecording');
+    const rowContentPaused = document.getElementById('rowContentPaused');
+    const btnStartRecord = document.getElementById('btnStartRecord');
+    const btnPauseRecord = document.getElementById('btnPauseRecord');
+    const btnFinishRecord = document.getElementById('btnFinishRecord');
+    const btnContinueRecord = document.getElementById('btnContinueRecord');
+    const btnNewRecord = document.getElementById('btnNewRecord');
+    const btnWhatsApp = document.getElementById('btnWhatsApp');
+    const btnSaveFile = document.getElementById('btnSaveFile');
+    const btnDiscardPill = document.getElementById('btnDiscardPill');
     const timerDisplay = document.getElementById('timerDisplay');
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
     const transcriptBox = document.getElementById('transcriptBox');
     const wordCount = document.getElementById('wordCount');
+    const committedList = document.getElementById('committedList');
+    const liveSpeakingBlock = document.getElementById('liveSpeakingBlock');
+    const liveSpeakingText = document.getElementById('liveSpeakingText');
+    const emptyPlaceholder = document.getElementById('emptyPlaceholder');
 
     try {
       savedHistory = JSON.parse(localStorage.getItem('meeting_history') || '[]');
@@ -679,7 +782,121 @@
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) setStatus('warn', 'Reconhecimento de voz não suportado neste navegador.');
 
-    // ─── Speech Recognition Engine (With Flush & Anti-Clipping) ───────────────
+    // ─── High-Performance Decoupled DOM Rendering (Zero-Freeze Engine) ────────
+    let isScrollScheduled = false;
+    function scheduleScrollToBottom() {
+      if (isScrollScheduled) return;
+      isScrollScheduled = true;
+      requestAnimationFrame(() => {
+        if (transcriptBox) transcriptBox.scrollTop = transcriptBox.scrollHeight;
+        isScrollScheduled = false;
+      });
+    }
+
+    function renderLiveThought(interimText = '') {
+      const liveText = (currentBuffer + (interimText ? ' ' + interimText : '')).trim();
+
+      if (liveText) {
+        if (emptyPlaceholder) emptyPlaceholder.style.display = 'none';
+        if (liveSpeakingBlock) liveSpeakingBlock.style.display = 'block';
+        if (liveSpeakingText) liveSpeakingText.textContent = liveText;
+        scheduleScrollToBottom();
+      } else {
+        if (liveSpeakingBlock) liveSpeakingBlock.style.display = 'none';
+        if (paragraphs.length === 0 && emptyPlaceholder) {
+          emptyPlaceholder.style.display = 'block';
+          emptyPlaceholder.textContent = 'A transcrição aparecerá aqui em tempo real...';
+        }
+      }
+      updateWordCountDebounced(liveText);
+      updateUI();
+    }
+
+    function appendCommittedBlock(speaker, text) {
+      if (!committedList) return;
+      if (emptyPlaceholder) emptyPlaceholder.style.display = 'none';
+
+      const block = document.createElement('div');
+      block.className = 'transcript-block';
+
+      const spk = document.createElement('span');
+      spk.className = 'speaker-label';
+      spk.textContent = (speaker || 'Augusto') + ':';
+
+      const pTxt = document.createElement('p');
+      pTxt.className = 'transcript-text';
+      pTxt.textContent = text;
+
+      block.appendChild(spk);
+      block.appendChild(pTxt);
+      committedList.appendChild(block);
+
+      scheduleScrollToBottom();
+    }
+
+    function renderAllCommitted() {
+      if (!committedList) return;
+      committedList.innerHTML = '';
+
+      paragraphs.forEach((p) => {
+        const speaker = (typeof p === 'object' && p.speaker) ? p.speaker : 'Augusto';
+        const text = (typeof p === 'object' && p.text) ? p.text : p;
+
+        const block = document.createElement('div');
+        block.className = 'transcript-block';
+
+        const spk = document.createElement('span');
+        spk.className = 'speaker-label';
+        spk.textContent = speaker + ':';
+
+        const pTxt = document.createElement('p');
+        pTxt.className = 'transcript-text';
+        pTxt.textContent = text;
+
+        block.appendChild(spk);
+        block.appendChild(pTxt);
+        committedList.appendChild(block);
+      });
+
+      if (paragraphs.length > 0) {
+        if (emptyPlaceholder) emptyPlaceholder.style.display = 'none';
+      } else if (!currentBuffer.trim()) {
+        if (emptyPlaceholder) {
+          emptyPlaceholder.style.display = 'block';
+          emptyPlaceholder.textContent = 'A transcrição aparecerá aqui em tempo real...';
+        }
+      }
+      renderLiveThought('');
+    }
+
+    let wordCountTimer = null;
+    function updateWordCountDebounced(liveText = '') {
+      if (wordCountTimer) return;
+      wordCountTimer = setTimeout(() => {
+        wordCountTimer = null;
+        let total = 0;
+        for (let i = 0; i < paragraphs.length; i++) {
+          const txt = (typeof paragraphs[i] === 'object' && paragraphs[i].text) ? paragraphs[i].text : paragraphs[i];
+          if (txt) {
+            const w = txt.trim().split(/\s+/).filter(Boolean);
+            total += w.length;
+          }
+        }
+        if (liveText) {
+          const lw = liveText.trim().split(/\s+/).filter(Boolean);
+          total += lw.length;
+        }
+        wordCount.textContent = total + (total === 1 ? ' palavra' : ' palavras');
+      }, 300);
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // ─── Speech Recognition Engine (With Flush & Anti-Lock Guard) ─────────────
+    let isStartingRecognition = false;
+
     function buildRecognition() {
       if (!SR) return null;
       const r = new SR();
@@ -690,6 +907,7 @@
 
       r.onstart = () => {
         isRecognitionRunning = true;
+        isStartingRecognition = false;
         if (state === 'recording') {
           setStatus('rec', '🎙️ Gravando... fale normalmente.');
         }
@@ -713,8 +931,8 @@
           commitCurrentParagraph();
         }, PARAGRAPH_DELAY);
 
-        renderTranscript(interim);
-        persistAutoDraft();
+        renderLiveThought(interim);
+        scheduleAutoDraft();
       };
 
       r.onerror = (e) => {
@@ -734,17 +952,18 @@
 
       r.onend = () => {
         isRecognitionRunning = false;
+        isStartingRecognition = false;
         // Do NOT discard or prematurely commit currentBuffer on onend!
         // The thought continues in Gold across Safari's silent 60s resets.
         if (state === 'recording') {
-          scheduleRecognitionRestart(100);
+          scheduleRecognitionRestart(150);
         }
       };
 
       return r;
     }
 
-    function scheduleRecognitionRestart(delay = 150) {
+    function scheduleRecognitionRestart(delay = 200) {
       if (restartTimeout) clearTimeout(restartTimeout);
       restartTimeout = setTimeout(() => {
         if (state === 'recording') {
@@ -754,20 +973,37 @@
     }
 
     function restartRecognition() {
-      if (state !== 'recording') return;
+      if (state !== 'recording' || isStartingRecognition) return;
+      isStartingRecognition = true;
       try {
         if (recognition) {
           try {
+            recognition.onstart = null;
+            recognition.onresult = null;
             recognition.onend = null;
             recognition.onerror = null;
             recognition.abort();
           } catch(e){}
           recognition = null;
         }
-        recognition = buildRecognition();
-        if (recognition) recognition.start();
+        setTimeout(() => {
+          if (state !== 'recording') {
+            isStartingRecognition = false;
+            return;
+          }
+          recognition = buildRecognition();
+          if (recognition) {
+            try {
+              recognition.start();
+            } catch(e){
+              console.warn('Erro ao reiniciar reconhecimento:', e);
+            }
+          }
+          isStartingRecognition = false;
+        }, 150);
       } catch(err) {
-        console.warn('Erro ao reconectar:', err);
+        console.warn('Erro em restartRecognition:', err);
+        isStartingRecognition = false;
         scheduleRecognitionRestart(800);
       }
     }
@@ -776,7 +1012,7 @@
       if (watchdogInterval) clearInterval(watchdogInterval);
       watchdogInterval = setInterval(() => {
         // Safe watchdog: only kick if confirmed stopped and no restart is queued
-        if (state === 'recording' && !isRecognitionRunning && !restartTimeout) {
+        if (state === 'recording' && !isRecognitionRunning && !isStartingRecognition && !restartTimeout) {
           console.log('Watchdog: microfone recuperado.');
           restartRecognition();
         }
@@ -790,24 +1026,6 @@
       }
     }
 
-    // ─── Visibility & Focus Handlers ──────────────────────────────────────────
-    document.addEventListener('visibilitychange', async () => {
-      if (state === 'recording') {
-        if (document.visibilityState === 'visible') {
-          acquireWakeLock().catch(()=>{});
-          if (!isRecognitionRunning && !restartTimeout) {
-            restartRecognition();
-          }
-        }
-      }
-    });
-
-    window.addEventListener('focus', () => {
-      if (state === 'recording' && !isRecognitionRunning && !restartTimeout) {
-        restartRecognition();
-      }
-    });
-
     // ─── Record Controls (Strict Synchronous User Activation) ─────────────────
     function clearAllSessionData() {
       paragraphs = [];
@@ -817,18 +1035,29 @@
       if (paragraphTimer) { clearTimeout(paragraphTimer); paragraphTimer = null; }
       clearAutoDraft();
       resetTimer();
-      renderTranscript('');
+      renderAllCommitted();
+      renderLiveThought('');
       wordCount.textContent = '0 palavras';
     }
 
     let discardTarget = 'idle'; // 'idle' = stay idle after discard; 'new_recording' = start fresh recording
 
+    function handleNewRecordingClick() {
+      SoundFX.click();
+      const hasExistingContent = paragraphs.length > 0 || currentBuffer.trim().length > 0;
+      if (hasExistingContent) {
+        document.getElementById('saveConfirmOverlay').classList.add('show');
+      } else {
+        clearAllSessionData();
+        startRecording();
+      }
+    }
+
     function handleRecordClick() {
       if (state === 'idle') {
         const hasExistingContent = paragraphs.length > 0 || currentBuffer.trim().length > 0;
         if (hasExistingContent) {
-          SoundFX.click();
-          document.getElementById('saveConfirmOverlay').classList.add('show');
+          handleNewRecordingClick();
           return;
         }
         clearAllSessionData();
@@ -877,11 +1106,13 @@
 
       // 3. Parallel non-blocking operations
       acquireWakeLock().catch(()=>{});
-      // Audio dedicated exclusively to WebSpeech to prevent audio drop
       startWatchdog();
 
       if (paragraphs.length === 0 && !currentBuffer) {
-        transcriptBox.innerHTML = '<span style="color:var(--text-dim);font-style:italic;font-size:13px;">🎙️ Escutando...</span>';
+        if (emptyPlaceholder) {
+          emptyPlaceholder.style.display = 'block';
+          emptyPlaceholder.textContent = '🎙️ Escutando... Fale normalmente.';
+        }
       }
 
       startTimer();
@@ -940,7 +1171,7 @@
       releaseWakeLock();
       stopAudioRecorder();
       pauseTimer();
-      state = 'finished';
+      state = 'idle';
 
       // Flush remaining words trapped in buffer or interim
       if (lastInterimText && lastInterimText.trim()) {
@@ -949,7 +1180,10 @@
       }
 
       if (currentBuffer.trim()) {
-        paragraphs.push(currentBuffer.trim());
+        paragraphs.push({
+          speaker: currentSpeaker,
+          text: currentBuffer.trim()
+        });
         currentBuffer = '';
       }
 
@@ -957,37 +1191,21 @@
         saveToInternalHistory();
       }
 
-      clearAutoDraft();
+      persistAutoDraft();
       updateUI();
-      renderTranscript('');
-      setStatus('finished', '✅ Reunião salva! Escolha: Criar Novo Arquivo ou Continuar.');
-      showToast('✅ Reunião salva no histórico!');
-    }
-
-    function startNewFile() {
-      SoundFX.start();
-      stopRecognitionOnly();
-      stopWatchdog();
-      releaseWakeLock();
-      stopAudioRecorder();
-
-      clearAllSessionData();
-      state = 'idle';
-      updateUI();
-
-      startRecording();
-      showToast('🆕 Novo arquivo iniciado!');
-    }
-
-    function continueRecording() {
-      resumeRecording();
+      renderAllCommitted();
+      setStatus('ok', '⏹️ Reunião encerrada! Salve ou envie o arquivo, ou inicie uma nova gravação.');
+      showToast('⏹️ Reunião encerrada!');
     }
 
     function stopRecognitionOnly() {
       if (restartTimeout) { clearTimeout(restartTimeout); restartTimeout = null; }
       isRecognitionRunning = false;
+      isStartingRecognition = false;
       if (recognition) {
         try {
+          recognition.onstart = null;
+          recognition.onresult = null;
           recognition.onend = null;
           recognition.onerror = null;
           recognition.stop();
@@ -1005,7 +1223,7 @@
           const nowElapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
           secondsElapsed = accumulatedSeconds + nowElapsed;
           timerDisplay.textContent = formatTime(secondsElapsed);
-          persistAutoDraft();
+          scheduleAutoDraft();
         }
       }, 1000);
     }
@@ -1025,38 +1243,42 @@
       timerDisplay.textContent = '00:00';
     }
 
-    // ─── UI Rendering (Clear Color & State Contrast) ──────────────────────────
+    // ─── Dynamic Controls UI (Automatic 2-Button Switch on Existing Content) ──
     function updateUI() {
-      const hasContent = paragraphs.length > 0 || currentBuffer.length > 0;
-      btnFinish.disabled = (state === 'idle' && !hasContent);
-      btnShare.disabled = !hasContent;
-      btnDiscard.disabled = (state === 'idle' && !hasContent);
+      const hasContent = (paragraphs.length > 0 || currentBuffer.trim().length > 0);
+      const isRecording = (state === 'recording');
 
-      if (state === 'finished') {
-        normalControls.style.display = 'none';
-        splitControls.classList.add('show');
-        timerDisplay.className = 'timer-badge';
+      const rInitial = document.getElementById('rowInitial');
+      const rRecording = document.getElementById('rowRecording');
+      const rContentPaused = document.getElementById('rowContentPaused');
+
+      const waBtn = document.getElementById('btnWhatsApp');
+      const saveBtn = document.getElementById('btnSaveFile');
+      const discardBtn = document.getElementById('btnDiscardPill');
+
+      if (isRecording) {
+        if (rInitial) rInitial.style.display = 'none';
+        if (rRecording) rRecording.style.display = 'flex';
+        if (rContentPaused) rContentPaused.style.display = 'none';
+        if (timerDisplay) timerDisplay.className = 'timer-badge active';
+      } else if (hasContent) {
+        // COM CONTEÚDO GRAVADO: 2 BOTÕES LADO A LADO [Continuar Gravação] e [Nova Gravação]
+        if (rInitial) rInitial.style.display = 'none';
+        if (rRecording) rRecording.style.display = 'none';
+        if (rContentPaused) rContentPaused.style.display = 'flex';
+        if (timerDisplay) timerDisplay.className = (state === 'paused') ? 'timer-badge paused' : 'timer-badge';
       } else {
-        normalControls.style.display = 'flex';
-        splitControls.classList.remove('show');
-
-        if (state === 'idle') {
-          btnRecord.className = 'btn-main idle';
-          btnText.textContent = '🎙️ Iniciar Gravação';
-          recDot.className = 'dot';
-          timerDisplay.className = 'timer-badge';
-        } else if (state === 'recording') {
-          btnRecord.className = 'btn-main recording';
-          btnText.textContent = '⏸️ Pausar Gravação';
-          recDot.className = 'dot recording';
-          timerDisplay.className = 'timer-badge active';
-        } else if (state === 'paused') {
-          btnRecord.className = 'btn-main paused';
-          btnText.textContent = '▶️ Retomar Gravação';
-          recDot.className = 'dot';
-          timerDisplay.className = 'timer-badge paused';
-        }
+        // TELA LIMPA: BOTÃO ÚNICO [Iniciar Gravação]
+        if (rInitial) rInitial.style.display = 'flex';
+        if (rRecording) rRecording.style.display = 'none';
+        if (rContentPaused) rContentPaused.style.display = 'none';
+        if (timerDisplay) timerDisplay.className = 'timer-badge';
       }
+
+      // Linha Secundária: WhatsApp, Salvar e Descartar
+      if (waBtn) waBtn.disabled = !hasContent;
+      if (saveBtn) saveBtn.disabled = !hasContent;
+      if (discardBtn) discardBtn.disabled = !hasContent && !isRecording;
     }
 
     function commitCurrentParagraph() {
@@ -1070,63 +1292,23 @@
           speaker: currentSpeaker,
           text: textToCommit
         });
+        appendCommittedBlock(currentSpeaker, textToCommit);
         currentBuffer = '';
-        renderTranscript('');
+        renderLiveThought('');
         persistAutoDraft();
       }
     }
 
-    function renderTranscript(interim) {
-      let html = '';
-
-      // 1. Committed paragraphs: Speaker in FOCCUS Blue (#5b9cf6), text in White
-      paragraphs.forEach((p) => {
-        const speaker = (typeof p === 'object' && p.speaker) ? p.speaker : 'Augusto';
-        const text = (typeof p === 'object' && p.text) ? p.text : p;
-        html += `
-          <div class="transcript-block">
-            <span class="speaker-label">${escapeHtml(speaker)}:</span>
-            <p class="transcript-text">${escapeHtml(text)}</p>
-          </div>
-        `;
-      });
-
-      // 2. Active in-progress thought: Full block in FOCCUS Gold (#dab177)
-      const liveText = (currentBuffer + (interim ? ' ' + interim : '')).trim();
-      if (liveText) {
-        html += `
-          <div class="transcript-block live-speaking">
-            <span class="speaker-label live">🎙️ ${escapeHtml(currentSpeaker)} (falando...):</span>
-            <p class="transcript-text">${escapeHtml(liveText)}</p>
-          </div>
-        `;
-      }
-
-      if (!html) {
-        if (state === 'idle') {
-          transcriptBox.innerHTML = '<span class="placeholder">A transcrição aparecerá aqui em tempo real...</span>';
-        }
-      } else {
-        transcriptBox.innerHTML = html;
-        transcriptBox.scrollTop = transcriptBox.scrollHeight;
-      }
-
-      // Word count calculation
-      let totalText = '';
-      paragraphs.forEach(p => {
-        totalText += ' ' + ((typeof p === 'object' && p.text) ? p.text : p);
-      });
-      totalText += ' ' + liveText;
-      const words = totalText.trim().split(/\s+/).filter(w => w.length > 0);
-      wordCount.textContent = words.length + (words.length === 1 ? ' palavra' : ' palavras');
-      updateUI();
+    // ─── Continuous Debounced Auto-Save ───────────────────────────────────────
+    let autoDraftTimeout = null;
+    function scheduleAutoDraft() {
+      if (autoDraftTimeout) return;
+      autoDraftTimeout = setTimeout(() => {
+        autoDraftTimeout = null;
+        persistAutoDraft();
+      }, 4000); // Max once every 4 seconds during speech
     }
 
-    function escapeHtml(text) {
-      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-
-    // ─── Continuous Auto-Save ─────────────────────────────────────────────────
     function persistAutoDraft() {
       if (paragraphs.length === 0 && !currentBuffer.trim()) {
         clearAutoDraft();
@@ -1166,7 +1348,8 @@
           if (langEl) langEl.classList.add('active');
 
           timerDisplay.textContent = formatTime(secondsElapsed);
-          renderTranscript('');
+          renderAllCommitted();
+          renderLiveThought('');
           updateUI();
           showToast('🔄 Gravação recuperada com sucesso!');
           setStatus('ok', 'Gravação anterior recuperada. Toque para continuar ou salvar.');
@@ -1249,6 +1432,72 @@
       try {
         localStorage.setItem('meeting_history', JSON.stringify(savedHistory));
       } catch(e){}
+    }
+
+    // ─── Envio Direto e Infalível para o WhatsApp ────────────────────────────
+    async function sendToWhatsApp() {
+      SoundFX.click();
+      const fullText = paragraphs.map(p => {
+        const spk = (typeof p === 'object' && p.speaker) ? p.speaker : 'Augusto';
+        const txt = (typeof p === 'object' && p.text) ? p.text : p;
+        return `*${spk}:*\n${txt}`;
+      }).join('\n\n');
+
+      const live = currentBuffer.trim();
+      const entireText = (fullText + (live ? '\n\n*Augusto:*\n' + live : '')).trim();
+
+      if (!entireText) {
+        showToast('Nenhum texto para enviar ao WhatsApp.');
+        return;
+      }
+
+      saveToInternalHistory();
+
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const dateStr = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
+      const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+      const message = [
+        `*TRANSCRIÇÃO DE REUNIÃO - FOCCUS*`,
+        `📅 Data: ${dateStr} às ${timeStr}`,
+        `⏱️ Duração: ${formatTime(secondsElapsed)}`,
+        `---------------------------`,
+        ``,
+        entireText,
+        ``,
+        `---------------------------`,
+        `_Gerado pelo Transcritor FOCCUS_`
+      ].join('\n');
+
+      // 1. Cópia automática para a área de transferência como garantia
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try { await navigator.clipboard.writeText(message); } catch(e){}
+      }
+
+      // 2. Compartilhamento nativo de texto (No iOS Safari, texto puro exibe o WhatsApp no topo da lista)
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Transcrição de Reunião - FOCCUS',
+            text: message
+          });
+          showToast('✅ Enviado para o WhatsApp!');
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') return;
+        }
+      }
+
+      // 3. Fallback direto para o protocolo whatsapp://
+      const encoded = encodeURIComponent(message);
+      if (encoded.length < 2500) {
+        window.location.href = `whatsapp://send?text=${encoded}`;
+      } else {
+        const preview = encodeURIComponent(message.substring(0, 1500) + '\n\n[...Texto completo copiado na área de transferência. Cole no chat...]');
+        window.location.href = `whatsapp://send?text=${preview}`;
+      }
+      showToast('📲 Abrindo WhatsApp...');
     }
 
     async function saveTranscript() {
