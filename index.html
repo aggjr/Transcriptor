@@ -397,7 +397,7 @@
   <header>
     <div class="logo">
       <div class="logo-icon"><img src="apple-touch-icon.png" alt="FOCCUS" style="width: 100%; height: 100%; border-radius: 9px; object-fit: cover;" /></div>
-      <div class="logo-text"><h1>Transcrição</h1><span>FOCCUS <small style="font-size: 10px; opacity: 0.7; cursor: pointer;" onclick="checkAppUpdate(true)" title="Toque para verificar atualizações">v1.2.2 🔄</small></span></div>
+      <div class="logo-text"><h1>Transcrição</h1><span>FOCCUS <small style="font-size: 10px; opacity: 0.7; cursor: pointer;" onclick="checkAppUpdate(true)" title="Toque para verificar atualizações">v1.2.3 🔄</small></span></div>
     </div>
     <div class="header-right">
       <div class="timer-badge" id="timerDisplay">00:00</div>
@@ -530,9 +530,31 @@
     </div>
   </div>
 
+    <!-- WhatsApp Smart Dispatch Modal -->
+  <div class="overlay" id="whatsappModal">
+    <div class="dialog">
+      <h3>💬 Enviar para o WhatsApp</h3>
+      <p>A transcrição possui <strong><span id="waModalWordCount">0</span> palavras</strong>. Como prefere enviar para o WhatsApp?</p>
+      <div class="dialog-buttons" style="flex-direction: column; gap: 10px;">
+        <button class="btn-primary-dialog" onclick="executeNativeShareWhatsApp()">
+          📤 Enviar via WhatsApp (Texto Completo)
+        </button>
+        <button class="btn-cancel" onclick="executeDirectWhatsAppUrl()" style="background: rgba(37, 211, 102, 0.18); border: 1.5px solid #25d366; color: #25d366; font-weight: 700;">
+          📲 Abrir WhatsApp Direto
+        </button>
+        <button class="btn-cancel" onclick="executeCopyOnlyWhatsApp()">
+          📋 Apenas Copiar Texto Completo
+        </button>
+        <button class="btn-cancel" onclick="closeDialog('whatsappModal')" style="margin-top: 4px;">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
-        const CURRENT_VERSION = '1.2.2';
-    const CURRENT_BUILD = 2026090502;
+        const CURRENT_VERSION = '1.2.3';
+    const CURRENT_BUILD = 2026090503;
     let pendingUpdateBuild = null;
 
     async function checkAppUpdate(isManual = false) {
@@ -1434,9 +1456,10 @@
       } catch(e){}
     }
 
-    // ─── Envio Direto e Infalível para o WhatsApp ────────────────────────────
-    async function sendToWhatsApp() {
-      SoundFX.click();
+    // ─── Envio Direto e Infalível para o WhatsApp (Síncrono e Sem Bloqueio) ──
+    let pendingWhatsAppMessage = '';
+
+    function buildWhatsAppFormattedMessage() {
       const fullText = paragraphs.map(p => {
         const spk = (typeof p === 'object' && p.speaker) ? p.speaker : 'Augusto';
         const txt = (typeof p === 'object' && p.text) ? p.text : p;
@@ -1445,20 +1468,14 @@
 
       const live = currentBuffer.trim();
       const entireText = (fullText + (live ? '\n\n*Augusto:*\n' + live : '')).trim();
-
-      if (!entireText) {
-        showToast('Nenhum texto para enviar ao WhatsApp.');
-        return;
-      }
-
-      saveToInternalHistory();
+      if (!entireText) return '';
 
       const now = new Date();
       const pad = n => String(n).padStart(2, '0');
       const dateStr = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
       const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-      const message = [
+      return [
         `*TRANSCRIÇÃO DE REUNIÃO - FOCCUS*`,
         `📅 Data: ${dateStr} às ${timeStr}`,
         `⏱️ Duração: ${formatTime(secondsElapsed)}`,
@@ -1469,35 +1486,116 @@
         `---------------------------`,
         `_Gerado pelo Transcritor FOCCUS_`
       ].join('\n');
+    }
 
-      // 1. Cópia automática para a área de transferência como garantia
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        try { await navigator.clipboard.writeText(message); } catch(e){}
-      }
-
-      // 2. Compartilhamento nativo de texto (No iOS Safari, texto puro exibe o WhatsApp no topo da lista)
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title: 'Transcrição de Reunião - FOCCUS',
-            text: message
-          });
-          showToast('✅ Enviado para o WhatsApp!');
-          return;
-        } catch (err) {
-          if (err.name === 'AbortError') return;
+    function copyToClipboardSync(text) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).catch(()=>{});
         }
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.style.top = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      } catch(e){}
+    }
+
+    function sendToWhatsApp() {
+      SoundFX.click();
+      const message = buildWhatsAppFormattedMessage();
+      if (!message) {
+        showToast('Nenhum texto para enviar ao WhatsApp.');
+        return;
       }
 
-      // 3. Fallback direto para o protocolo whatsapp://
-      const encoded = encodeURIComponent(message);
-      if (encoded.length < 2500) {
-        window.location.href = `whatsapp://send?text=${encoded}`;
-      } else {
-        const preview = encodeURIComponent(message.substring(0, 1500) + '\n\n[...Texto completo copiado na área de transferência. Cole no chat...]');
-        window.location.href = `whatsapp://send?text=${preview}`;
+      saveToInternalHistory();
+      pendingWhatsAppMessage = message;
+
+      // Cópia síncrona imediata para a área de transferência
+      copyToClipboardSync(message);
+
+      // Calcula palavras para informar no modal
+      const words = message.trim().split(/\s+/).filter(Boolean).length;
+      const countEl = document.getElementById('waModalWordCount');
+      if (countEl) countEl.textContent = words;
+
+      // Se for texto longo (> 1200 caracteres), abre o modal com as opções claras
+      // para contornar o limite de 2000 caracteres de URLs do WhatsApp no iOS
+      if (message.length > 1200) {
+        document.getElementById('whatsappModal').classList.add('show');
+        return;
       }
-      showToast('📲 Abrindo WhatsApp...');
+
+      // Se for texto curto (< 1200 caracteres), abre direto no WhatsApp
+      executeDirectWhatsAppUrl();
+    }
+
+    function executeNativeShareWhatsApp() {
+      closeDialog('whatsappModal');
+      SoundFX.click();
+      if (!pendingWhatsAppMessage) return;
+
+      copyToClipboardSync(pendingWhatsAppMessage);
+
+      if (navigator.share) {
+        navigator.share({
+          title: 'Transcrição de Reunião - FOCCUS',
+          text: pendingWhatsAppMessage
+        }).then(() => {
+          showToast('✅ Enviado com sucesso!');
+        }).catch(err => {
+          if (err.name !== 'AbortError') {
+            executeDirectWhatsAppUrl();
+          }
+        });
+      } else {
+        executeDirectWhatsAppUrl();
+      }
+    }
+
+    function executeDirectWhatsAppUrl() {
+      closeDialog('whatsappModal');
+      SoundFX.click();
+      if (!pendingWhatsAppMessage) {
+        pendingWhatsAppMessage = buildWhatsAppFormattedMessage();
+      }
+      if (!pendingWhatsAppMessage) return;
+
+      copyToClipboardSync(pendingWhatsAppMessage);
+
+      // WhatsApp no iOS tem limite de ~2000 chars na URL. Se for longo, envia resumo e usa o texto copiado
+      let textToSend = pendingWhatsAppMessage;
+      if (textToSend.length > 1500) {
+        textToSend = pendingWhatsAppMessage.substring(0, 1350) + '\n\n[...Texto completo copiado para a área de transferência! Pressione e cole no chat...]';
+      }
+
+      const encoded = encodeURIComponent(textToSend);
+      const waUrl = 'https://api.whatsapp.com/send?text=' + encoded;
+
+      const a = document.createElement('a');
+      a.href = waUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      showToast('📲 Abrindo WhatsApp... (Texto copiado)');
+    }
+
+    function executeCopyOnlyWhatsApp() {
+      closeDialog('whatsappModal');
+      SoundFX.click();
+      if (!pendingWhatsAppMessage) {
+        pendingWhatsAppMessage = buildWhatsAppFormattedMessage();
+      }
+      copyToClipboardSync(pendingWhatsAppMessage);
+      showToast('📋 Transcrição completa copiada para colar no WhatsApp!');
     }
 
     async function saveTranscript() {
