@@ -563,17 +563,33 @@
       }
     }
 
-    function applyAppUpdate() {
-      // Salva rascunho atual antes de recarregar para não perder a gravação
+    async function applyAppUpdate() {
+      // 1. Salva rascunho atual para não perder gravação
       if (typeof persistAutoDraft === 'function') {
         try { persistAutoDraft(); } catch(e) {}
       }
-      showToast('💾 Gravação salva. Atualizando...');
-      if ('caches' in window) {
-        try { caches.keys().then(keys => keys.forEach(k => caches.delete(k))); } catch(e){}
+      showToast('💾 Salvando e atualizando...');
+
+      // 2. Desregistra service workers (causa principal do cache preso no PWA)
+      if ('serviceWorker' in navigator) {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        } catch(e) {}
       }
-      const newUrl = window.location.origin + window.location.pathname + '?v=' + (pendingUpdateBuild || Date.now());
-      setTimeout(() => window.location.replace(newUrl), 800);
+
+      // 3. Apaga todos os caches do browser — AGUARDA completar
+      if ('caches' in window) {
+        try {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        } catch(e) {}
+      }
+
+      // 4. Recarrega com URL sem query param (evita conflito com cache do iOS PWA)
+      const base = window.location.origin + window.location.pathname;
+      window.location.replace(base + '#updated=' + (pendingUpdateBuild || Date.now()));
+      window.location.reload(true);
     }
 
     window.addEventListener('load', () => {
