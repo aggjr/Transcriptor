@@ -531,21 +531,30 @@
   </div>
 
   <script>
-        const CURRENT_VERSION = '1.2.2';
-    const CURRENT_BUILD = 2026090502;
     let pendingUpdateBuild = null;
+    let loadedBuild = null; // build real que está rodando agora
 
     async function checkAppUpdate(isManual = false) {
       try {
         const res = await fetch('version.json?_t=' + Date.now(), { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
-        if (data && data.build && data.build > CURRENT_BUILD) {
+        if (!data || !data.build) return;
+
+        // Primeira chamada: registra o build atual que está rodando
+        if (loadedBuild === null) {
+          loadedBuild = data.build;
+          if (isManual) showToast('✅ Versão atual: v' + (data.version || '?'));
+          return;
+        }
+
+        // Chamadas seguintes: só alerta se saiu build NOVO desde que a página carregou
+        if (data.build > loadedBuild) {
           pendingUpdateBuild = data.build;
           SoundFX.click();
           document.getElementById('updateModal').classList.add('show');
         } else if (isManual) {
-          showToast('✅ Você já está na versão mais recente (v' + CURRENT_VERSION + ')!');
+          showToast('✅ Você já está na versão mais recente (v' + (data.version || '?') + ')!');
         }
       } catch(e) {
         if (isManual) showToast('Não foi possível verificar no momento.');
@@ -562,11 +571,16 @@
     }
 
     window.addEventListener('load', () => {
+      // Primeira chamada: só registra o build que está rodando agora
       setTimeout(() => checkAppUpdate(false), 1200);
+      // Checagens periódicas a cada 5 minutos
+      setInterval(() => {
+        if (document.visibilityState === 'visible') checkAppUpdate(false);
+      }, 5 * 60 * 1000);
     });
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && state === 'idle') {
+      if (document.visibilityState === 'visible' && loadedBuild !== null) {
         checkAppUpdate(false);
       }
     });
