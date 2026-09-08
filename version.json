@@ -1,6 +1,6 @@
 {
-  "version": "1.2.3",
-  "build": 2026090503,
-  "updatedAt": "2026-09-05T21:05:00Z",
-  "description": "Envio definitivo WhatsApp com modal inteligente para textos longos, copia garantida e 2 botoes dinamicos."
+  "version": "1.2.2",
+  "build": 2026090502,
+  "updatedAt": "2026-09-05T18:50:00Z",
+  "description": "Envio direto para WhatsApp, fluxo de 2 botoes (Continuar / Nova Gravacao) e motor sem travamentos."
 }
