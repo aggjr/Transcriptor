@@ -1,6 +1,7 @@
 {
-  "version": "1.2.2",
-  "build": 2026090502,
+  "version": "1.2.4",
+  "build": "2026090801",
   "updatedAt": "2026-09-05T18:50:00Z",
-  "description": "Envio direto para WhatsApp, fluxo de 2 botoes (Continuar / Nova Gravacao) e motor sem travamentos."
+  "description": "Envio direto para WhatsApp, fluxo de 2 botoes (Continuar / Nova Gravacao) e motor sem travamentos.",
+  "notes": "Revert v1.2.3 regression. WhatsApp synchronous fix for iOS Safari."
 }

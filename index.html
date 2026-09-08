@@ -1435,7 +1435,7 @@
     }
 
     // ─── Envio Direto e Infalível para o WhatsApp ────────────────────────────
-    async function sendToWhatsApp() {
+    function sendToWhatsApp() {
       SoundFX.click();
       const fullText = paragraphs.map(p => {
         const spk = (typeof p === 'object' && p.speaker) ? p.speaker : 'Augusto';
@@ -1470,34 +1470,42 @@
         `_Gerado pelo Transcritor FOCCUS_`
       ].join('\n');
 
-      // 1. Cópia automática para a área de transferência como garantia
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        try { await navigator.clipboard.writeText(message); } catch(e){}
-      }
+      // 1. Cópia SÍNCRONA via execCommand (mantém token de gesto do iOS)
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = message;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch(e) {}
 
-      // 2. Compartilhamento nativo de texto (No iOS Safari, texto puro exibe o WhatsApp no topo da lista)
+      // 2. navigator.share() chamado DIRETAMENTE (sem await antes — obrigatório no iOS Safari)
       if (navigator.share) {
-        try {
-          await navigator.share({
-            title: 'Transcrição de Reunião - FOCCUS',
-            text: message
-          });
-          showToast('✅ Enviado para o WhatsApp!');
-          return;
-        } catch (err) {
-          if (err.name === 'AbortError') return;
-        }
+        navigator.share({
+          title: 'Transcrição de Reunião - FOCCUS',
+          text: message
+        }).then(() => {
+          showToast('✅ Compartilhado com sucesso!');
+        }).catch(err => {
+          if (err.name !== 'AbortError') {
+            showToast('📋 Texto copiado! Cole no WhatsApp.');
+          }
+        });
+        return;
       }
 
-      // 3. Fallback direto para o protocolo whatsapp://
+      // 3. Fallback: protocolo whatsapp:// (funciona até ~400 palavras)
       const encoded = encodeURIComponent(message);
       if (encoded.length < 2500) {
         window.location.href = `whatsapp://send?text=${encoded}`;
+        showToast('📲 Abrindo WhatsApp...');
       } else {
-        const preview = encodeURIComponent(message.substring(0, 1500) + '\n\n[...Texto completo copiado na área de transferência. Cole no chat...]');
-        window.location.href = `whatsapp://send?text=${preview}`;
+        showToast('📋 Texto copiado! Abra o WhatsApp e cole no chat.');
       }
-      showToast('📲 Abrindo WhatsApp...');
     }
 
     async function saveTranscript() {
