@@ -483,7 +483,9 @@
   <div class="overlay" id="updateModal">
     <div class="dialog">
       <h3>🚀 Nova Versão Disponível</h3>
-      <p>Uma nova atualização do Transcritor FOCCUS foi publicada com melhorias de gravação e visual. Deseja atualizar agora?</p>
+      <p>Uma nova versão do Transcritor FOCCUS foi publicada.<br><br>
+      <strong>💾 Sua gravação atual será salva automaticamente</strong> e restaurada após a atualização.<br><br>
+      Deseja atualizar agora?</p>
       <div class="dialog-buttons">
         <button class="btn-cancel" onclick="closeDialog('updateModal')">Mais Tarde</button>
         <button class="btn-primary-dialog" onclick="applyAppUpdate()">🔄 Atualizar Agora</button>
@@ -562,12 +564,16 @@
     }
 
     function applyAppUpdate() {
-      showToast('Atualizando aplicativo...');
+      // Salva rascunho atual antes de recarregar para não perder a gravação
+      if (typeof persistAutoDraft === 'function') {
+        try { persistAutoDraft(); } catch(e) {}
+      }
+      showToast('💾 Gravação salva. Atualizando...');
       if ('caches' in window) {
         try { caches.keys().then(keys => keys.forEach(k => caches.delete(k))); } catch(e){}
       }
       const newUrl = window.location.origin + window.location.pathname + '?v=' + (pendingUpdateBuild || Date.now());
-      window.location.replace(newUrl);
+      setTimeout(() => window.location.replace(newUrl), 800);
     }
 
     window.addEventListener('load', () => {
