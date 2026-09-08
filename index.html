@@ -1459,15 +1459,15 @@
       const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
       const message = [
-        `*TRANSCRIÇÃO DE REUNIÃO - FOCCUS*`,
-        `📅 Data: ${dateStr} às ${timeStr}`,
-        `⏱️ Duração: ${formatTime(secondsElapsed)}`,
+        `TRANSCRIÇÃO DE REUNIÃO - FOCCUS`,
+        `Data: ${dateStr} às ${timeStr}`,
+        `Duração: ${formatTime(secondsElapsed)}`,
         `---------------------------`,
         ``,
         entireText,
         ``,
         `---------------------------`,
-        `_Gerado pelo Transcritor FOCCUS_`
+        `Gerado pelo Transcritor FOCCUS`
       ].join('\n');
 
       // 1. Cópia SÍNCRONA via execCommand (mantém token de gesto do iOS)
@@ -1483,7 +1483,26 @@
         document.body.removeChild(ta);
       } catch(e) {}
 
-      // 2. navigator.share() chamado DIRETAMENTE (sem await antes — obrigatório no iOS Safari)
+      // 2. Tenta compartilhar como ARQUIVO .txt (abre WhatsApp como documento)
+      if (navigator.share && navigator.canShare) {
+        const fileName = `foccus-${dateStr.replace(/\//g,'-')}_${timeStr.replace(':','-')}.txt`;
+        const file = new File([message], fileName, { type: 'text/plain' });
+        if (navigator.canShare({ files: [file] })) {
+          navigator.share({
+            files: [file],
+            title: 'Transcrição FOCCUS'
+          }).then(() => {
+            showToast('✅ Arquivo .txt enviado!');
+          }).catch(err => {
+            if (err.name !== 'AbortError') {
+              showToast('📋 Texto copiado! Cole no WhatsApp.');
+            }
+          });
+          return;
+        }
+      }
+
+      // 3. Fallback: compartilhar como texto direto
       if (navigator.share) {
         navigator.share({
           title: 'Transcrição de Reunião - FOCCUS',
@@ -1498,7 +1517,7 @@
         return;
       }
 
-      // 3. Fallback: protocolo whatsapp:// (funciona até ~400 palavras)
+      // 4. Último recurso: protocolo whatsapp://
       const encoded = encodeURIComponent(message);
       if (encoded.length < 2500) {
         window.location.href = `whatsapp://send?text=${encoded}`;
