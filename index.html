@@ -1476,11 +1476,11 @@
       const fullText = paragraphs.map(p => {
         const spk = (typeof p === 'object' && p.speaker) ? p.speaker : 'Augusto';
         const txt = (typeof p === 'object' && p.text) ? p.text : p;
-        return `*${spk}:*\n${txt}`;
+        return `${spk}:\n${txt}`;
       }).join('\n\n');
 
       const live = currentBuffer.trim();
-      const entireText = (fullText + (live ? '\n\n*Augusto:*\n' + live : '')).trim();
+      const entireText = (fullText + (live ? '\n\nAugusto:\n' + live : '')).trim();
 
       if (!entireText) {
         showToast('Nenhum texto para enviar ao WhatsApp.');
@@ -1495,9 +1495,9 @@
       const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
       const message = [
-        `TRANSCRIÇÃO DE REUNIÃO - FOCCUS`,
-        `Data: ${dateStr} às ${timeStr}`,
-        `Duração: ${formatTime(secondsElapsed)}`,
+        `TRANSCRICAO DE REUNIAO - FOCCUS`,
+        `Data: ${dateStr} as ${timeStr}`,
+        `Duracao: ${formatTime(secondsElapsed)}`,
         `---------------------------`,
         ``,
         entireText,
@@ -1506,60 +1506,52 @@
         `Gerado pelo Transcritor FOCCUS`
       ].join('\n');
 
-      // 1. Cópia SÍNCRONA via execCommand (mantém token de gesto do iOS)
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = message;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-      } catch(e) {}
+      const fileName = `foccus-${dateStr.replace(/\//g,'-')}_${timeStr.replace(':','-')}.txt`;
 
-      // 2. Tenta compartilhar como ARQUIVO .txt (abre WhatsApp como documento)
+      // Tenta compartilhar como ARQUIVO .txt — chamado DIRETAMENTE do gesto (sem nada async antes)
       if (navigator.share && navigator.canShare) {
-        const fileName = `foccus-${dateStr.replace(/\//g,'-')}_${timeStr.replace(':','-')}.txt`;
         const file = new File([message], fileName, { type: 'text/plain' });
         if (navigator.canShare({ files: [file] })) {
-          navigator.share({
-            files: [file],
-            title: 'Transcrição FOCCUS'
-          }).then(() => {
-            showToast('✅ Arquivo .txt enviado!');
-          }).catch(err => {
-            if (err.name !== 'AbortError') {
-              showToast('📋 Texto copiado! Cole no WhatsApp.');
-            }
-          });
+          navigator.share({ files: [file], title: 'Transcricao FOCCUS' })
+            .then(() => { showToast('✅ Arquivo .txt enviado!'); })
+            .catch(err => {
+              if (err.name !== 'AbortError') {
+                // Fallback: copia para área de transferência
+                navigator.clipboard && navigator.clipboard.writeText(message).catch(() => {});
+                showToast('📋 Texto copiado! Cole no WhatsApp.');
+              }
+            });
           return;
         }
       }
 
-      // 3. Fallback: compartilhar como texto direto
+      // Fallback 1: compartilhar como texto puro
       if (navigator.share) {
-        navigator.share({
-          title: 'Transcrição de Reunião - FOCCUS',
-          text: message
-        }).then(() => {
-          showToast('✅ Compartilhado com sucesso!');
-        }).catch(err => {
-          if (err.name !== 'AbortError') {
-            showToast('📋 Texto copiado! Cole no WhatsApp.');
-          }
-        });
+        navigator.share({ title: 'Transcricao FOCCUS', text: message })
+          .then(() => { showToast('✅ Compartilhado!'); })
+          .catch(err => {
+            if (err.name !== 'AbortError') {
+              navigator.clipboard && navigator.clipboard.writeText(message).catch(() => {});
+              showToast('📋 Texto copiado! Cole no WhatsApp.');
+            }
+          });
         return;
       }
 
-      // 4. Último recurso: protocolo whatsapp://
-      const encoded = encodeURIComponent(message);
-      if (encoded.length < 2500) {
-        window.location.href = `whatsapp://send?text=${encoded}`;
-        showToast('📲 Abrindo WhatsApp...');
-      } else {
-        showToast('📋 Texto copiado! Abra o WhatsApp e cole no chat.');
+      // Fallback 2: download direto do arquivo .txt no browser
+      try {
+        const blob = new Blob([message], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('📥 Arquivo baixado! Envie pelo WhatsApp.');
+      } catch(e) {
+        showToast('Não foi possível compartilhar.');
       }
     }
 
