@@ -1512,27 +1512,18 @@
       ].join('\n');
 
       const fileName = `foccus-${y}-${m}-${d}_${h}h${mi}.txt`;
+      const file = new File([message], fileName, { type: 'text/plain' });
 
-      // Abre o painel de compartilhamento nativo do iPhone com o arquivo .txt
-      if (navigator.share) {
-        const file = new File([message], fileName, { type: 'text/plain' });
-        navigator.share({
-          files: [file],
-          title: 'Transcricao FOCCUS'
-        }).catch(err => {
-          // Se o dispositivo não suportar share com arquivo, tenta só com texto
-          if (err.name !== 'AbortError') {
-            navigator.share({ title: 'Transcricao FOCCUS', text: message })
-              .catch(() => {});
-          }
-        });
-      } else {
-        showToast('Compartilhamento nao suportado neste dispositivo.');
-      }
+      // Chamada DIRETA ao painel nativo — sem canShare, sem await, sem DOM antes
+      navigator.share({ files: [file] }).catch(() => {
+        // Fallback: copia o texto para a area de transferencia
+        try { navigator.clipboard.writeText(message); } catch(e) {}
+        showToast('Texto copiado! Cole onde desejar.');
+      });
     }
 
 
-    async function saveTranscript() {
+    function saveTranscript() {
       SoundFX.finish();
       saveToInternalHistory();
       const fullText = paragraphs.map(p => {
@@ -1551,64 +1542,36 @@
 
       const fileHeader = [
         '=============================================',
-        '         TRANSCRIÇÃO DE REUNIÃO - FOCCUS',
+        '         TRANSCRICAO DE REUNIAO - FOCCUS',
         '=============================================',
         `Data: ${now.toLocaleDateString('pt-BR', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}`,
         `Hora: ${now.toLocaleTimeString('pt-BR')}`,
-        `Duração registrada: ${formatTime(secondsElapsed)}`,
+        `Duracao registrada: ${formatTime(secondsElapsed)}`,
         `Idioma: ${selectedLang}`,
         '=============================================',
         '',
-        'TRANSCRIÇÃO:',
+        'TRANSCRICAO:',
         '---------------------------------------------',
         '',
         fullText.trim(),
         '',
         '---------------------------------------------',
-        'Gerado pelo app Transcrição de Reunião - FOCCUS'
+        'Gerado pelo app Transcricao de Reuniao - FOCCUS'
       ].join('\n');
 
-      const textBlob = new Blob([fileHeader], { type: 'text/plain;charset=utf-8' });
-      const textFile = new File([textBlob], textFilename, { type: 'text/plain' });
-
-      // Package files to share
-      const filesToShare = [textFile];
+      // Monta lista de arquivos
+      const filesToShare = [new File([fileHeader], textFilename, { type: 'text/plain' })];
       if (recordedAudioBlob && recordedAudioBlob.size > 0) {
         const audioExt = recordedAudioBlob.type.includes('mp4') ? 'm4a' : 'webm';
-        const audioFile = new File([recordedAudioBlob], `${baseName}.${audioExt}`, { type: recordedAudioBlob.type });
-        filesToShare.push(audioFile);
+        filesToShare.push(new File([recordedAudioBlob], `${baseName}.${audioExt}`, { type: recordedAudioBlob.type }));
       }
 
-      if (navigator.canShare && navigator.canShare({ files: filesToShare })) {
-        try {
-          await navigator.share({
-            files: filesToShare,
-            title: textFilename,
-            text: 'Transcrição e áudio da reunião - FOCCUS'
-          });
-          showToast('✅ Arquivos salvos / compartilhados!');
-          return;
-        } catch (shareErr) {
-          if (shareErr.name === 'AbortError') return;
-        }
-      }
-
-      // Fallback: download text file directly
-      const url = URL.createObjectURL(textBlob);
-      const a = document.createElement('a');
-      a.href = url; a.download = textFilename; a.click();
-      URL.revokeObjectURL(url);
-
-      // Also trigger audio download if available
-      if (recordedAudioBlob && recordedAudioBlob.size > 0) {
-        const audioExt = recordedAudioBlob.type.includes('mp4') ? 'm4a' : 'webm';
-        const aUrl = URL.createObjectURL(recordedAudioBlob);
-        const aLink = document.createElement('a');
-        aLink.href = aUrl; aLink.download = `${baseName}.${audioExt}`; aLink.click();
-        URL.revokeObjectURL(aUrl);
-      }
-
-      showToast('📄 Arquivos baixados!');
+      // Chamada DIRETA ao painel nativo — sem canShare, sem await
+      navigator.share({ files: filesToShare }).catch(() => {
+        // Fallback: copia texto para clipboard
+        try { navigator.clipboard.writeText(fileHeader); } catch(e) {}
+        showToast('Texto copiado! Cole onde desejar.');
+      });
     }
 
     function openHistoryModal() {
@@ -1638,23 +1601,17 @@
       document.getElementById('historyOverlay').classList.add('show');
     }
 
-    async function shareHistoryItem(index) {
+    function shareHistoryItem(index) {
       SoundFX.click();
       const item = savedHistory[index];
       if (!item) return;
-      const blob = new Blob([item.text], { type: 'text/plain;charset=utf-8' });
-      const file = new File([blob], item.filename, { type: 'text/plain' });
+      const file = new File([item.text], item.filename, { type: 'text/plain' });
 
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: item.filename });
-          return;
-        } catch(e){}
-      }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = item.filename; a.click();
-      URL.revokeObjectURL(url);
+      // Chamada DIRETA ao painel nativo — sem canShare, sem await
+      navigator.share({ files: [file] }).catch(() => {
+        try { navigator.clipboard.writeText(item.text); } catch(e) {}
+        showToast('Texto copiado! Cole onde desejar.');
+      });
     }
 
     function deleteHistoryItem(index) {
