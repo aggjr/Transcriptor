@@ -164,6 +164,15 @@
       transition: all 0.2s; -webkit-tap-highlight-color: transparent;
       border: 1px solid var(--border);
     }
+        .btn-action-pill.btn-share {
+      background: rgba(91, 156, 246, 0.15);
+      border-color: rgba(91, 156, 246, 0.45);
+      color: #5b9cf6;
+    }
+    .btn-action-pill.btn-share:not(:disabled):hover {
+      background: rgba(91, 156, 246, 0.28);
+      color: #ffffff;
+    }
     .btn-action-pill.btn-wa {
       background: rgba(37, 211, 102, 0.15);
       border-color: rgba(37, 211, 102, 0.45);
@@ -436,13 +445,17 @@
       </button>
     </div>
 
-    <!-- Linha Secundária: WhatsApp Direto, Salvar Arquivo e Descartar -->
+    <!-- Linha Secundária: Compartilhar Genérico iOS, Salvar Arquivo e Descartar -->
     <div class="controls-row">
-      <button class="btn-action-pill btn-wa" id="btnWhatsApp" onclick="sendToWhatsApp()" disabled title="Enviar transcrição diretamente para o WhatsApp">
-        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-        <span>WhatsApp</span>
+      <button class="btn-action-pill btn-share" id="btnShare" onclick="shareTranscript()" disabled title="Compartilhar arquivo .txt (WhatsApp, E-mail, AirDrop, etc.)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+          <polyline points="16 6 12 2 8 6"/>
+          <line x1="12" y1="2" x2="12" y2="15"/>
+        </svg>
+        <span>Compartilhar</span>
       </button>
-      <button class="btn-action-pill btn-save-file" id="btnSaveFile" onclick="saveTranscript()" disabled title="Baixar arquivo .txt e áudio">
+      <button class="btn-action-pill btn-save-file" id="btnSaveFile" onclick="saveTranscript()" disabled title="Baixar arquivo .txt e salvar no histórico">
         <span>💾 Salvar</span>
       </button>
       <button class="btn-action-pill btn-discard-pill" id="btnDiscardPill" onclick="promptDiscard()" disabled title="Descartar gravação atual">
@@ -802,7 +815,8 @@
     const btnFinishRecord = document.getElementById('btnFinishRecord');
     const btnContinueRecord = document.getElementById('btnContinueRecord');
     const btnNewRecord = document.getElementById('btnNewRecord');
-    const btnWhatsApp = document.getElementById('btnWhatsApp');
+    const btnShare = document.getElementById('btnShare') || document.getElementById('btnWhatsApp');
+    const btnWhatsApp = btnShare;
     const btnSaveFile = document.getElementById('btnSaveFile');
     const btnDiscardPill = document.getElementById('btnDiscardPill');
     const timerDisplay = document.getElementById('timerDisplay');
@@ -1228,7 +1242,7 @@
       }
 
       if (paragraphs.length > 0) {
-        saveToInternalHistory();
+        try { saveToInternalHistory(); } catch(e) { console.warn('Erro ao salvar historico:', e); }
       }
 
       persistAutoDraft();
@@ -1292,7 +1306,7 @@
       const rRecording = document.getElementById('rowRecording');
       const rContentPaused = document.getElementById('rowContentPaused');
 
-      const waBtn = document.getElementById('btnWhatsApp');
+      const shareBtn = document.getElementById('btnShare') || document.getElementById('btnWhatsApp');
       const saveBtn = document.getElementById('btnSaveFile');
       const discardBtn = document.getElementById('btnDiscardPill');
 
@@ -1316,7 +1330,7 @@
       }
 
       // Linha Secundária: WhatsApp, Salvar e Descartar
-      if (waBtn) waBtn.disabled = !hasContent;
+      if (shareBtn) shareBtn.disabled = !hasContent;
       if (saveBtn) saveBtn.disabled = !hasContent;
       if (discardBtn) discardBtn.disabled = !hasContent && !isRecording;
     }
@@ -1428,54 +1442,64 @@
 
     // ─── Internal History Storage ─────────────────────────────────────────────
     function saveToInternalHistory() {
-      const fullText = paragraphs.map(p => {
-        const spk = (typeof p === 'object' && p.speaker) ? p.speaker : 'Augusto';
-        const txt = (typeof p === 'object' && p.text) ? p.text : p;
-        return `${spk}:\n${txt}`;
-      }).join('\n\n');
-      if (!fullText.trim()) return;
-
-      const now = new Date();
-      const pad = n => String(n).padStart(2, '0');
-      const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-      const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-      const id = Date.now();
-      const filename = `reuniao_${dateStr}_${pad(now.getHours())}-${pad(now.getMinutes())}.txt`;
-
-      const header = [
-        '=============================================',
-        '         TRANSCRIÇÃO DE REUNIÃO - FOCCUS',
-        '=============================================',
-        `Data: ${now.toLocaleDateString('pt-BR', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}`,
-        `Hora: ${now.toLocaleTimeString('pt-BR')}`,
-        `Duração registrada: ${formatTime(secondsElapsed)}`,
-        `Idioma: ${selectedLang}`,
-        '=============================================',
-        '',
-        'TRANSCRIÇÃO:',
-        '---------------------------------------------',
-        '',
-        fullText.trim()
-      ].join('\n');
-
-      if (savedHistory.length > 0 && savedHistory[0].text === header) return;
-
-      savedHistory.unshift({
-        id,
-        filename,
-        dateStr: `${dateStr} às ${timeStr}`,
-        snippet: paragraphs[0] ? paragraphs[0].substring(0, 60) + '...' : 'Sem resumo',
-        text: header
-      });
-
-      if (savedHistory.length > 30) savedHistory.pop();
       try {
+        const fullText = paragraphs.map(p => {
+          const spk = (typeof p === 'object' && p.speaker) ? p.speaker : 'Augusto';
+          const txt = (typeof p === 'object' && p.text) ? p.text : p;
+          return `${spk}:\n${txt}`;
+        }).join('\n\n');
+        if (!fullText.trim()) return;
+
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+        const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        const id = Date.now();
+        const filename = `reuniao_${dateStr}_${pad(now.getHours())}-${pad(now.getMinutes())}.txt`;
+
+        const header = [
+          '=============================================',
+          '         TRANSCRIÇÃO DE REUNIÃO - FOCCUS',
+          '=============================================',
+          `Data: ${now.toLocaleDateString('pt-BR', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}`,
+          `Hora: ${now.toLocaleTimeString('pt-BR')}`,
+          `Duração registrada: ${formatTime(secondsElapsed)}`,
+          `Idioma: ${selectedLang}`,
+          '=============================================',
+          '',
+          'TRANSCRIÇÃO:',
+          '---------------------------------------------',
+          '',
+          fullText.trim(),
+          '',
+          '---------------------------------------------',
+          'Gerado pelo app Transcrição de Reunião - FOCCUS'
+        ].join('\n');
+
+        if (savedHistory.length > 0 && savedHistory[0].text === header) return;
+
+        // Extrai texto com segurança seja objeto ou string
+        const firstText = (paragraphs[0] && typeof paragraphs[0] === 'object' && paragraphs[0].text)
+          ? paragraphs[0].text
+          : (typeof paragraphs[0] === 'string' ? paragraphs[0] : '');
+
+        savedHistory.unshift({
+          id,
+          filename,
+          dateStr: `${dateStr} às ${timeStr}`,
+          snippet: firstText ? (firstText.substring(0, 60) + '...') : 'Sem resumo',
+          text: header
+        });
+
+        if (savedHistory.length > 30) savedHistory.pop();
         localStorage.setItem('meeting_history', JSON.stringify(savedHistory));
-      } catch(e){}
+      } catch(e) {
+        console.warn('Erro ao salvar no histórico interno:', e);
+      }
     }
 
-    // ─── Compartilhar Transcrição (painel nativo do iPhone) ──────────────────
-    function sendToWhatsApp() {
+    // ─── Compartilhamento Genérico do iPhone (WhatsApp, E-mail, AirDrop, etc.) ──
+    function shareTranscript() {
       SoundFX.click();
 
       const fullText = paragraphs.map(p => {
@@ -1500,38 +1524,89 @@
       const h = pad(now.getHours()), mi = pad(now.getMinutes());
 
       const message = [
-        'TRANSCRICAO - FOCCUS',
-        `Data: ${d}/${m}/${y} as ${h}:${mi}`,
-        `Duracao: ${formatTime(secondsElapsed)}`,
-        '------------------------------',
+        '=============================================',
+        '         TRANSCRIÇÃO DE REUNIÃO - FOCCUS',
+        '=============================================',
+        `Data: ${d}/${m}/${y} às ${h}:${mi}`,
+        `Duração registrada: ${formatTime(secondsElapsed)}`,
+        `Idioma: ${selectedLang}`,
+        '=============================================',
+        '',
+        'TRANSCRIÇÃO:',
+        '---------------------------------------------',
         '',
         entireText,
         '',
-        '------------------------------',
-        'Gerado pelo Transcritor FOCCUS'
+        '---------------------------------------------',
+        'Gerado pelo app Transcrição de Reunião - FOCCUS'
       ].join('\n');
 
-      const fileName = `foccus-${y}-${m}-${d}_${h}h${mi}.txt`;
-      const file = new File([message], fileName, { type: 'text/plain' });
+      const fileName = `reuniao_${y}-${m}-${d}_${h}h${mi}.txt`;
 
-      // Chamada DIRETA ao painel nativo — sem canShare, sem await, sem DOM antes
-      navigator.share({ files: [file] }).catch(() => {
-        // Fallback: copia o texto para a area de transferencia
-        try { navigator.clipboard.writeText(message); } catch(e) {}
-        showToast('Texto copiado! Cole onde desejar.');
-      });
+      if (navigator.share) {
+        const file = new File([message], fileName, { type: 'text/plain' });
+        navigator.share({
+          files: [file],
+          title: fileName
+        }).catch(err => {
+          if (err && err.name === 'AbortError') return;
+          // Fallback para share com texto puro se compartilhamento de arquivos não for aceito
+          navigator.share({
+            title: fileName,
+            text: message
+          }).catch(err2 => {
+            if (err2 && err2.name === 'AbortError') return;
+            copyTextFallback(message, fileName);
+          });
+        });
+      } else {
+        copyTextFallback(message, fileName);
+      }
     }
 
+    function copyTextFallback(text, fileName) {
+      try {
+        navigator.clipboard.writeText(text);
+      } catch(e) {}
+      try {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1000);
+        showToast('📋 Copiado e baixado!');
+      } catch(e) {
+        showToast('📋 Texto copiado para a área de transferência!');
+      }
+    }
 
+    // Mantém alias para compatibilidade com chamadas antigas
+    const sendToWhatsApp = shareTranscript;
+
+    // ─── Salvar no Histórico e Baixar Arquivo .txt ────────────────────────────
     function saveTranscript() {
       SoundFX.finish();
       saveToInternalHistory();
+
       const fullText = paragraphs.map(p => {
         const spk = (typeof p === 'object' && p.speaker) ? p.speaker : 'Augusto';
         const txt = (typeof p === 'object' && p.text) ? p.text : p;
         return `${spk}:\n${txt}`;
       }).join('\n\n');
-      if (!fullText.trim()) { showToast('Nenhum texto para salvar.'); return; }
+
+      const live = currentBuffer.trim();
+      const entireText = (fullText + (live ? '\n\nAugusto:\n' + live : '')).trim();
+
+      if (!entireText) {
+        showToast('Nenhum texto para salvar.');
+        return;
+      }
 
       const now = new Date();
       const pad = n => String(n).padStart(2, '0');
@@ -1542,36 +1617,56 @@
 
       const fileHeader = [
         '=============================================',
-        '         TRANSCRICAO DE REUNIAO - FOCCUS',
+        '         TRANSCRIÇÃO DE REUNIÃO - FOCCUS',
         '=============================================',
         `Data: ${now.toLocaleDateString('pt-BR', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}`,
         `Hora: ${now.toLocaleTimeString('pt-BR')}`,
-        `Duracao registrada: ${formatTime(secondsElapsed)}`,
+        `Duração registrada: ${formatTime(secondsElapsed)}`,
         `Idioma: ${selectedLang}`,
         '=============================================',
         '',
-        'TRANSCRICAO:',
+        'TRANSCRIÇÃO:',
         '---------------------------------------------',
         '',
-        fullText.trim(),
+        entireText,
         '',
         '---------------------------------------------',
-        'Gerado pelo app Transcricao de Reuniao - FOCCUS'
+        'Gerado pelo app Transcrição de Reunião - FOCCUS'
       ].join('\n');
 
-      // Monta lista de arquivos
-      const filesToShare = [new File([fileHeader], textFilename, { type: 'text/plain' })];
+      // 1. Download do arquivo de texto
+      try {
+        const textBlob = new Blob([fileHeader], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(textBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = textFilename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1000);
+      } catch(e) {}
+
+      // 2. Download do áudio gravado se houver
       if (recordedAudioBlob && recordedAudioBlob.size > 0) {
-        const audioExt = recordedAudioBlob.type.includes('mp4') ? 'm4a' : 'webm';
-        filesToShare.push(new File([recordedAudioBlob], `${baseName}.${audioExt}`, { type: recordedAudioBlob.type }));
+        try {
+          const audioExt = recordedAudioBlob.type.includes('mp4') ? 'm4a' : 'webm';
+          const aUrl = URL.createObjectURL(recordedAudioBlob);
+          const aLink = document.createElement('a');
+          aLink.href = aUrl;
+          aLink.download = `${baseName}.${audioExt}`;
+          document.body.appendChild(aLink);
+          aLink.click();
+          setTimeout(() => {
+            document.body.removeChild(aLink);
+            URL.revokeObjectURL(aUrl);
+          }, 1000);
+        } catch(e) {}
       }
 
-      // Chamada DIRETA ao painel nativo — sem canShare, sem await
-      navigator.share({ files: filesToShare }).catch(() => {
-        // Fallback: copia texto para clipboard
-        try { navigator.clipboard.writeText(fileHeader); } catch(e) {}
-        showToast('Texto copiado! Cole onde desejar.');
-      });
+      showToast('💾 Arquivo salvo no histórico e baixado!');
     }
 
     function openHistoryModal() {
@@ -1607,11 +1702,16 @@
       if (!item) return;
       const file = new File([item.text], item.filename, { type: 'text/plain' });
 
-      // Chamada DIRETA ao painel nativo — sem canShare, sem await
-      navigator.share({ files: [file] }).catch(() => {
-        try { navigator.clipboard.writeText(item.text); } catch(e) {}
-        showToast('Texto copiado! Cole onde desejar.');
-      });
+      if (navigator.share) {
+        navigator.share({ files: [file], title: item.filename }).catch(err => {
+          if (err && err.name === 'AbortError') return;
+          try {
+            navigator.share({ text: item.text, title: item.filename }).catch(() => {});
+          } catch(e) {}
+        });
+      } else {
+        copyTextFallback(item.text, item.filename);
+      }
     }
 
     function deleteHistoryItem(index) {

@@ -1,7 +1,7 @@
 {
-  "version": "1.3.3",
-  "build": "2026091701",
-  "updatedAt": "2026-09-17T11:30:00Z",
-  "description": "Todos os botoes de compartilhamento corrigidos - share direto sem canShare e sem await.",
-  "notes": "sendToWhatsApp, saveTranscript e shareHistoryItem usam navigator.share direto."
+  "version": "1.3.4",
+  "build": "2026091801",
+  "updatedAt": "2026-09-18T12:00:00Z",
+  "description": "Botao generico de Compartilhar do iPhone restaurado (WhatsApp, Email, etc.), correcao do encerramento de gravacao e download de arquivo.",
+  "notes": "Fix saveToInternalHistory TypeError substring, restaura botao de Compartilhar iOS nativo, download limpo de arquivo .txt."
 }
